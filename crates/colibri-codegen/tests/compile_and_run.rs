@@ -14,29 +14,47 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-fn deps_dir() -> PathBuf {
-    std::env::current_exe()
-        .expect("test binary path")
-        .parent()
-        .expect("deps directory")
-        .to_path_buf()
+fn workspace_target() -> PathBuf {
+    if let Some(target) = std::env::var_os("CARGO_TARGET_DIR") {
+        return PathBuf::from(target);
+    }
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target")
 }
 
-fn find_rlib(deps: &Path, crate_name: &str) -> PathBuf {
-    let prefix = format!("lib{crate_name}-");
-    let mut candidates: Vec<PathBuf> = fs::read_dir(deps)
-        .expect("read deps")
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| {
-            let name = path.file_name().unwrap().to_string_lossy();
-            name.starts_with(&prefix) && name.ends_with(".rlib")
-        })
-        .collect();
+fn is_rlib(path: &Path, crate_name: &str) -> bool {
+    let Some(name) = path.file_name() else {
+        return false;
+    };
+    let name = name.to_string_lossy();
+    let lib = format!("lib{crate_name}-");
+    let plain = format!("{crate_name}-");
+    name.ends_with(".rlib") && (name.starts_with(&lib) || name.starts_with(&plain))
+}
+
+fn collect_rlibs(directory: &Path, crate_name: &str, found: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_rlibs(&path, crate_name, found);
+        } else if is_rlib(&path, crate_name) {
+            found.push(path);
+        }
+    }
+}
+
+fn find_rlib(crate_name: &str) -> PathBuf {
+    let mut candidates = Vec::new();
+    collect_rlibs(&workspace_target(), crate_name, &mut candidates);
     candidates.sort_by_key(|path| fs::metadata(path).and_then(|meta| meta.modified()).ok());
-    candidates
-        .pop()
-        .unwrap_or_else(|| panic!("missing rlib for {crate_name} in {}", deps.display()))
+    candidates.pop().unwrap_or_else(|| {
+        panic!(
+            "missing rlib for {crate_name} under {}",
+            workspace_target().display()
+        )
+    })
 }
 
 fn compile_and_run(source: &str) -> String {
@@ -52,7 +70,9 @@ fn compile_and_run(source: &str) -> String {
     let source_path = workdir.join("main.rs");
     fs::write(&source_path, code).expect("write source");
     let exe = workdir.join(format!("app{}", std::env::consts::EXE_SUFFIX));
-    let deps = deps_dir();
+    let ir_rlib = find_rlib("colibri_ir");
+    let ssr_rlib = find_rlib("colibri_ssr");
+    let deps = ir_rlib.parent().expect("deps directory");
 
     let output = Command::new("rustc")
         .arg("--edition=2021")
@@ -60,15 +80,9 @@ fn compile_and_run(source: &str) -> String {
         .arg("-o")
         .arg(&exe)
         .arg("--extern")
-        .arg(format!(
-            "colibri_ir={}",
-            find_rlib(&deps, "colibri_ir").display()
-        ))
+        .arg(format!("colibri_ir={}", ir_rlib.display()))
         .arg("--extern")
-        .arg(format!(
-            "colibri_ssr={}",
-            find_rlib(&deps, "colibri_ssr").display()
-        ))
+        .arg(format!("colibri_ssr={}", ssr_rlib.display()))
         .arg("-L")
         .arg(format!("dependency={}", deps.display()))
         .output()
