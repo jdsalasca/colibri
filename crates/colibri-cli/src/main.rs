@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 fn usage() {
     eprintln!("Usage: colibri-cli check <component.colibri>");
-    eprintln!("Note: only basic SFC blocks are validated.");
+    eprintln!("Note: validates SFC blocks and template structure only.");
 }
 
 fn run() -> Result<(), String> {
@@ -20,10 +20,10 @@ fn run() -> Result<(), String> {
         return Err("too many arguments".into());
     }
     let source = fs::read_to_string(&path).map_err(|e| format!("cannot read {path}: {e}"))?;
-    let component = parse(&source).map_err(|e| format!("invalid {path}: {e}"))?;
-    println!("SFC blocks valid: {path}");
+    let component = parse(&path, &source).map_err(|error| error.to_string())?;
+    println!("SFC valid: {path}");
     println!("  Rust script: {}", component.script.is_some());
-    println!("  template bytes: {}", component.template.len());
+    println!("  template nodes: {}", component.template.nodes.len());
     println!("  style: {}", component.style.is_some());
     println!("WARNING: template/Rust/SCSS compilation is not yet implemented");
     Ok(())

@@ -9,6 +9,8 @@
 5. [rendering.md](rendering.md): HTML, SSR/SSG, DOM, islas, hidratación.
 6. [toolchain.md](toolchain.md): Cargo, Vite, SCSS, CLI y empaquetado.
 
+Contrato implementado: [template-ast.md](template-ast.md) (M01).
+
 ## Jerarquía para resolver dudas
 `AGENTS.md` y ADR aceptados → contrato de spec → implementación verificada → documentación aspiracional. Cuando exista desacuerdo, abrir ADR y no crear compatibilidad falsa.
 

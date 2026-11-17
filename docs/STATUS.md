@@ -6,7 +6,7 @@ Actualizado: 2026-11-16. Baseline M00 verificado en local sobre `main` (Windows 
 | Módulo | Implementado (limitado) | NO implementado |
 |---|---|---|
 | `colibri-core` | `Signal<T>` con suscripciones explícitas; `Scope` con callbacks de limpieza | autotracking, Memo, Effect, Scheduler, concurrencia, DOM |
-| `colibri-parser` | extracción lineal preliminar de bloques `script/template/style`; validación básica de lang | parser robusto de HTML, Rust y SCSS, spans, comentarios complejos, anidamiento |
+| `colibri-parser` | scanner SFC que ignora cierres dentro de strings/comentarios; AST de template con spans, atributos e interpolaciones; límites de tamaño/profundidad (M01) | lowering a IR, validación de expresiones Rust, HTML5 completo, entidades, SCSS |
 | `colibri-ir` | tipos preliminares `Component`/`Node`/`Attribute` | IR tipada, lowering, análisis semántico, grafo de dependencias |
 | `colibri-ssr` | escape HTML para subconjunto estático y rechazo de expresiones dinámicas | SSR dinámico, streaming, islas, hidratación |
 | `colibri-cli` | `check` de estructura SFC | compilación, `dev`, `build`, `preview`, `benchmark` |
@@ -26,8 +26,9 @@ Actualizado: 2026-11-16. Baseline M00 verificado en local sobre `main` (Windows 
 |---|---|
 | `cargo fmt --all --check` | Pasa en local (M00) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en local (M00) |
-| `cargo test --workspace` | Pasa en local: 9 pruebas (M00) |
-| `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques, no compila |
+| `cargo test --workspace` | Pasa en local: 23 pruebas (M00: 9, M01: 14) |
+| `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
+| CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
 | CI de GitHub con `--check` | Pendiente: requiere push |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |

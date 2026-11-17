@@ -1,6 +1,6 @@
 # Especificación propuesta SFC: archivos `.colibri`
 
-**Estado:** propuesta pre-1.0. El parser actual sólo detecta bloques superficiales; este documento **no describe una implementación existente**.
+**Estado:** propuesta pre-1.0. El parser actual detecta bloques y construye el AST del template ([contrato](template-ast.md)); todavía no compila a Rust ni renderiza HTML.
 
 ## Forma mínima
 ~~~html

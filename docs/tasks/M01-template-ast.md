@@ -1,6 +1,6 @@
 # M01 — Lexer + AST de template SFC
 
-**Prioridad:** P0. **Depende de:** M00. **Área:** `colibri-parser`. **Spec:** `docs/spec/sfc.md`.
+**Prioridad:** P0. **Depende de:** M00. **Área:** `colibri-parser`. **Spec:** [`docs/spec/template-ast.md`](../spec/template-ast.md). **Estado:** implementado en local (2026-11-16); CI pendiente de push.
 
 ## Objetivo
 Reemplazar la extracción superficial por tokens y AST estructurado de HTML/template, preservando fuente y spans. No generar Rust todavía.
@@ -22,11 +22,17 @@ Reemplazar la extracción superficial por tokens y AST estructurado de HTML/temp
 No ejecutar Rust, no añadir DOM, CSS processor, Vue syntax avanzada, AST a IR ni scheduling.
 
 ## Aceptación
-- [ ] Parser produce AST anidada con spans precisos.
-- [ ] Casos malformed, duplicate, closing tag in literal y Unicode fallan sin panic.
-- [ ] Todos los tests previos siguen verdes; API de CLI `check` reporta ruta/línea.
-- [ ] Contrato de AST documentado para M02.
-- [ ] El parser no evalúa código ni inyecta HTML por sí mismo.
+- [x] Parser produce AST anidada con spans precisos.
+- [x] Casos malformed, duplicate, closing tag in literal y Unicode fallan sin panic.
+- [x] Todos los tests previos siguen verdes; API de CLI `check` reporta ruta/línea.
+- [x] Contrato de AST documentado para M02.
+- [x] El parser no evalúa código ni inyecta HTML por sí mismo.
 
 ## Handoff
 API de AST y ejemplos golden, lista de sintaxis admitida/rechazada y decisiones no tomadas.
+
+Verificado en local: 14 pruebas de `colibri-parser` (nested tags, CRLF, Unicode, raw/byte strings, comentarios, profundidad, tamaño, prefijos sin panic), 23 en el workspace, `colibri check` con `archivo:línea:columna`.
+
+Admitido: un `<template>` con nodos hermanos, elementos void/autocierre, atributos literales/booleanos/`{expr}`, interpolaciones con llaves equilibradas, comentarios, `script` Rust y `style` CSS/SCSS. Rechazado: HTML5 completo, entidades, doctype, `{` literal, control de flujo, componentes, props y más de un bloque por tipo.
+
+Decisiones pendientes para M02: mapeo exacto de `Interpolation` a IR dinámica vs error tipado; tratamiento de comentarios (descartar o conservar como metadato); escape de `{` literal.

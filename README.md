@@ -21,7 +21,7 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 | Paquete | Estado | Función |
 |---|---|---|
 | `colibri-core` | Prototipo | `Signal<T>`, suscripciones y limpieza por `Scope` (notificación síncrona; sin seguimiento automático) |
-| `colibri-parser` | Prototipo | Extrae y valida bloques básicos de archivos `.colibri` |
+| `colibri-parser` | Prototipo | Scanner SFC y AST de template con spans (M01); no compila |
 | `colibri-ir` | Modelo inicial | Nodos compartidos para vistas estáticas y enlaces dinámicos |
 | `colibri-ssr` | Prototipo | Genera HTML seguro para nodos **estáticos** del IR |
 | `colibri-cli` | Prototipo | Comando `check` para validar estructura SFC |
