@@ -425,6 +425,10 @@ struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "diagnostic constructor keeps parser call sites short"
+    )]
     fn error(
         &self,
         code: ErrorCode,
