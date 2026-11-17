@@ -1,43 +1,74 @@
-# Architecture v0.1 — Dual Syntax, Single Engine
+# Arquitectura de referencia — Colibrí v0.1
 
-> Design target, not a complete implementation.
+> **Diseño objetivo, NO estado de implementación.** Estado verificado: [STATUS.md](STATUS.md). ADR base: [0001](adr/0001-dual-syntax-single-ir.md), [0002](adr/0002-static-first.md).
 
-```text
-Rust #[component] / view!     .colibri (Rust + template + SCSS)
-            \                  /
-         AST and type validation
-                    |
-         Shared semantic Colibrí IR
-                    |
-    Static analysis and code generation
-       /            |             \
-HTML + CSS        Rust SSR      Rust -> WASM
-(no runtime)      (server)      (islands/client)
-                                  |
-                          minimal browser bridge
-```
+## Contrato fundamental
+Dos sintaxis, **una sola semántica observable**. Rust `#[component]`/`view!` y archivos `.colibri` deben converger en un IR compartido o en una forma compilada demostrablemente equivalente. La IR es una estructura de **compilación**, no un árbol obligatorio residente en el cliente. Ninguna sintaxis tiene privilegios ocultos en runtime.
 
-## What exists
-- `colibri-core`: explicit subscription-based synchronous `Signal<T>` and cleanup `Scope`, **not** dependency autotracking, memoization or a scheduler.
-- `colibri-parser`: limited SFC top-level block parser for Rust script, template and style. It does **not** parse nested HTML or Rust expressions.
-- `colibri-ir`: minimal static/dynamic node types with no parser-to-IR lowering yet.
-- `colibri-ssr`: restrictive static subset renderer with HTML escaping. No server-side expression evaluation.
-- `colibri-cli`: `check` performs limited block validation, not compilation.
+~~~text
+Rust component (.rs)          Colibrí SFC (.colibri)
+  proc macro / Rust AST          SFC blocks / template AST / Rust script
+             \                    /
+               normalized, typed component model
+                         |
+                  semantic IR + spans
+                         |
+             analyses / constant folding / bindings
+                         |
+         +---------------+---------------+
+         |               |               |
+   Static HTML/CSS     Server Rust    Client Rust/WASM
+   (zero client RT)       SSR          (selective islands)
+                                         |
+                                 thin Web APIs bridge
+~~~
 
-## Core architectural decisions
-1. **Common IR**: `.rs` and `.colibri` must have the same semantics for props, events, state, ownership and lifecycle.
-2. **Separate compilation from runtime**: client does not download compiler, Sass, Vite or Rust source.
-3. **Static-first**: all-static pages require no JS/WASM; interactive islands load only when needed.
-4. **Signals and scopes**: local reactive dependencies plus deterministic cleanup. Avoid a mandatory VDOM.
-5. **WASM is optional by workload**: measure bridge overhead before selecting WASM or minimal JS.
-6. **Accessibility/security**: semantic DOM, safe escaping, unsafe URL rejection, no implicit raw HTML.
-7. **Dev tools**: Vite plugin, CSS modules, SCSS, scoped CSS, sourcemaps and incremental Rust builds are *planned*, not implemented.
-8. **Benchmarks before claims**: performance targets are hypotheses.
+## Paquetes actuales y dependencias
+| Crate | Propósito | Puede depender de | Nunca debe depender de |
+|---|---|---|---|
+| `colibri-ir` | modelo semántico / vistas | biblioteca estándar inicialmente | core, DOM, browser, Vite |
+| `colibri-parser` | SFC, templates, posiciones | ir en lowering futuro; bibliotecas de parser cuando se justifiquen | DOM, SSR |
+| `colibri-core` | señales, scopes, scheduler | std, abstractions explicit | parser, Vite, DOM |
+| `colibri-ssr` | render seguro y streaming futuro | ir, core cuando SSR dinámico llegue | Vite, browser bindings |
+| `colibri-cli` | herramientas orquestadoras | parser, codegen, Cargo, sistemas de build | client runtime |
+| `vite-plugin-colibri` | integración JS/TS sólo de desarrollo | Vite, puentes a CLI | core runtime |
 
-## Future compiler stages
-SFC tokenization -> HTML template AST -> Rust expression parsing (syn) -> typed props/dependencies -> semantic IR -> static optimizer -> Rust code generation -> Cargo/WASM + SSR/SSG + CSS extraction.
+## Paquetes planificados, NO crear sin tarea/ADR
+`colibri-macros` (proc macros), `colibri-codegen` (IR a Rust), `colibri-dom` (adaptador WASM/browser), `colibri-router` (rutas), `colibri-test` (harness). Paquetes separados sólo cuando exista un contrato y caso funcional que justifique la división.
 
-## Open questions
-Typed props and generic closures; hydration and serializable state; stable IDs under hot reload; effects and re-entrancy; batching; WASM module splitting; SSR safety; deterministic DOM updates. Each requires tests/ADRs.
+## Flujos compilación
+1. Leer el SFC y extraer bloques conservando offsets y ubicaciones. Nunca interpretar código Rust con expresiones regulares.
+2. Parsear template a AST estructurado, seguro para anidamiento y texto UTF-8.
+3. Validar sintaxis Rust con rustc/syn en su contexto; emitir errores con span de SFC.
+4. Normalizar props, children, eventos, bindings, expresiones y atributos en la IR.
+5. Identificar subárboles estáticos, dependencias, identidad de nodos y necesidades de cliente.
+6. Generar código Rust tipado y manifiestos de assets (Sass compilado fuera del navegador).
+7. Cargo compila servidor/WASM; adaptador JS mínimo enlaza APIs DOM si hacen falta.
+8. Verificar equivalencia estática y dinámica entre origen Rust y SFC.
 
-See `docs/adr/`, `docs/roadmap.md` and `docs/benchmarks.md`.
+## Flujos runtime
+- **Static**: emitir HTML/CSS; 0 bytes de código Colibrí cliente.
+- **SSR**: computar HTML seguro en servidor Rust; opcional streaming futuro.
+- **Islands**: markup inicial + activación de componentes interactivos; medir chunks/arranque.
+- **Client**: app completa Rust/WASM si tiene justificación funcional.
+- El estado se vincula a scopes, que determinan vida útil de effects/listeners/tareas.
+- El DOM backend usa Web APIs, con batching sólo donde preserve comportamiento observable.
+- Scheduling cooperativo: no pretender interrumpir arbitrariamente WASM síncrono.
+
+## Límites de responsabilidad
+- `parser` no ejecuta Rust, ni genera HTML de usuario directamente.
+- `IR` representa semántica y referencias; no contiene APIs del DOM ni asignadores del navegador.
+- `core` no renderiza ni conoce HTML.
+- `ssr` escapa contenido y rechaza operaciones inseguras.
+- `dom` (futuro) manipula nodos a través de APIs browser y limpia listeners al desmontar.
+- `cli/tooling` nunca se distribuye en bundle de producción.
+
+## Compatibilidad y evolución
+- Evitar publicar una API estable antes de tests de equivalencia.
+- Cada cambio incompatible a SFC/IR requiere nota de migración y ADR.
+- Los ejemplos conceptuales deben llevar etiqueta "no implementado".
+- En caso de ambigüedad: preferir corrección y estándares web antes que atajos de rendimiento.
+
+## Contratos detallados
+- [SFC](spec/sfc.md), [componentes](spec/components.md), [IR](spec/ir.md), [reactividad](spec/reactivity.md), [renderizado](spec/rendering.md), [toolchain](spec/toolchain.md).
+- [Plan de ejecución](tasks/README.md), [seguridad](security.md), [pruebas](testing.md), [benchmarks](benchmarks.md).
