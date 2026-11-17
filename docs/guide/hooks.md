@@ -90,6 +90,22 @@ let handle = colibri_dom::hydrate(dom! { <HydratedCounter/> }, container)?;
 - `Dynamic` y `Keyed` todavía no son hidratables: `hydrate` devuelve error.
 - Si la estructura no coincide, devuelve error sin borrar el DOM SSR. Ver [ADR 0016](../adr/0016-hydration.md).
 
+### Islas
+
+Una página SSR puede tener varias regiones interactivas independientes:
+
+```rust
+let mut handles = Vec::new();
+if let Some(handle) = colibri_dom::hydrate_island("#island-counter", || dom! { <Counter/> })? {
+    handles.push(handle);
+}
+if let Some(handle) = colibri_dom::hydrate_island("#island-toggle", || dom! { <Toggle/> })? {
+    handles.push(handle);
+}
+```
+
+Cada isla hidrata su subárbol y se desmonta con su propio `MountHandle`; un selector inexistente devuelve `None`. Un solo bundle WASM sirve todas las islas: todavía no hay manifiesto ni chunking. Ver [ADR 0017](../adr/0017-islands.md).
+
 ## Async y lazy
 
 ```rust

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Colibrí · islas</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="island-counter"><section class="hydrated"><p class="label">contador: 0</p><p class="value">0</p><button type="button" class="increment">+1</button></section></div>
+  <div id="island-toggle"><button type="button" class="toggle-island off">OFF</button></div>
+  <script type="module">
+    import init, { hydrate_islands_demo, unmount_islands } from './pkg/counter.js';
+    await init();
+    window.colibriIslands = { hydrate_islands_demo, unmount_islands };
+    try {
+      hydrate_islands_demo();
+    } catch (error) {
+      console.error(error);
+    }
+  </script>
+</body>
+</html>

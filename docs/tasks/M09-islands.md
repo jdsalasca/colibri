@@ -16,8 +16,14 @@ Entregar HTML/ CSS legible sin runtime cuando no hay interactividad; en páginas
 - [ ] Página 100 % estática descarga 0 JS y 0 WASM propios.
 - [ ] Página mixta carga sólo bytes necesarios para su interacción.
 - [ ] Navegación, teclado, focus y formulario funcionan con progressive enhancement.
-- [ ] Tests muestran cleanup y ausencia de estado duplicado tras activaciones.
+- [x] Tests muestran cleanup y ausencia de estado duplicado tras activaciones (dos islas E2E, desmontaje independiente).
 - [ ] Métricas reportadas con equipos modestos, no sólo laptop moderna.
+
+## Implementado (parcial)
+
+- `colibri_dom::hydrate_island(selector, view)`: hidrata la primera coincidencia y devuelve `Option<MountHandle>`; ausencia = `None`. Ver [ADR 0017](../adr/0017-islands.md).
+- Demo `islands.html`: contador y toggle SSR independientes; `unmount_islands()` los limpia por separado.
+- Pendiente: manifiesto de dependencias, chunking por ruta/isla, activación por interacción/visibilidad/idle y métricas.
 
 ## Handoff
 Estrategia de chunks/manifest, comportamiento de fallos de carga y benchmarks antes/después.

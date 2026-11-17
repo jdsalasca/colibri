@@ -110,6 +110,41 @@ test('hydrates server-rendered DOM without losing nodes', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('hydrates independent islands on a server-rendered page', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  await page.goto('/islands.html');
+  await expect(page.locator('#island-counter p.value')).toHaveText('0');
+  await page.evaluate(() => {
+    const counter = document.querySelector<HTMLElement>('#island-counter section');
+    const toggle = document.querySelector<HTMLElement>('#island-toggle button');
+    if (counter) counter.dataset.island = 'counter';
+    if (toggle) toggle.dataset.island = 'toggle';
+  });
+
+  await page.locator('#island-counter button.increment').click();
+  await expect(page.locator('#island-counter p.value')).toHaveText('1');
+  await expect(page.locator('#island-counter p.label')).toHaveText('contador: 1');
+
+  const toggle = page.locator('#island-toggle button.toggle-island');
+  await expect(toggle).toHaveText('OFF');
+  await toggle.click();
+  await expect(toggle).toHaveText('ON');
+  await expect(toggle).toHaveClass(/on/);
+
+  await expect(page.locator('#island-counter section')).toHaveAttribute('data-island', 'counter');
+  await expect(page.locator('#island-toggle button')).toHaveAttribute('data-island', 'toggle');
+
+  await page.evaluate(() => (window as any).colibriIslands.unmount_islands());
+  await expect(page.locator('#island-counter > *')).toHaveCount(0);
+  await expect(page.locator('#island-toggle > *')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('click to DOM latency stays bounded against a vanilla baseline', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.value')).toHaveText('0');

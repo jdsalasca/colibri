@@ -47,6 +47,47 @@ mod wasm {
         }
     }
 
+    #[component]
+    pub fn HydratedToggle() -> View {
+        let on = use_state(false);
+        let label = on.clone();
+        let class = on.clone();
+        let click = on.clone();
+        dom! {
+            <button
+                type="button"
+                class={if class.get() { "toggle-island on" } else { "toggle-island off" }}
+                on:click={move |_event| click.update(|value| *value = !*value)}
+            >
+                {if label.get() { "ON" } else { "OFF" }}
+            </button>
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn hydrate_islands_demo() -> Result<(), JsValue> {
+        let mut handles = Vec::new();
+        if let Some(handle) = colibri_dom::hydrate_island("#island-counter", || {
+            dom! { <HydratedCounter/> }
+        })? {
+            handles.push(handle);
+        }
+        if let Some(handle) = colibri_dom::hydrate_island("#island-toggle", || {
+            dom! { <HydratedToggle/> }
+        })? {
+            handles.push(handle);
+        }
+        let old = ISLANDS.with(|slot| std::mem::replace(&mut *slot.borrow_mut(), handles));
+        drop(old);
+        Ok(())
+    }
+
+    #[wasm_bindgen]
+    pub fn unmount_islands() {
+        let old = ISLANDS.with(|slot| std::mem::take(&mut *slot.borrow_mut()));
+        drop(old);
+    }
+
     #[wasm_bindgen(start)]
     pub fn start() -> Result<(), JsValue> {
         if web_sys::window()
@@ -76,6 +117,8 @@ mod wasm {
     thread_local! {
         static ROOT: std::cell::RefCell<Option<colibri_dom::MountHandle>> =
             const { std::cell::RefCell::new(None) };
+        static ISLANDS: std::cell::RefCell<Vec<colibri_dom::MountHandle>> =
+            const { std::cell::RefCell::new(Vec::new()) };
     }
 
     #[wasm_bindgen]

@@ -617,3 +617,20 @@ pub fn hydrate(view: View, container: Element) -> Result<MountHandle, JsValue> {
         })
     })
 }
+
+/// Hydrate an island found by `selector`; `None` when the page has no such node.
+///
+/// Islands are independent interactive roots inside a server-rendered page: each
+/// one hydrates its own subtree and is torn down by its own [`MountHandle`].
+pub fn hydrate_island(
+    selector: &str,
+    view: impl FnOnce() -> View,
+) -> Result<Option<MountHandle>, JsValue> {
+    let document = web_sys::window()
+        .and_then(|window| window.document())
+        .ok_or_else(|| JsValue::from_str("no document"))?;
+    let Some(container) = document.query_selector(selector)? else {
+        return Ok(None);
+    };
+    hydrate(view(), container).map(Some)
+}

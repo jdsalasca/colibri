@@ -33,6 +33,7 @@ Abre <http://127.0.0.1:3211/>. Click en `+1`:
 - teardown: 25 ciclos mount/unmount dejan `stats()` en cero y `#app` vacío
 - teclado: Enter/Space activan, `Shift+Tab` mueve el foco
 - hidratación: `/hydrate.html` adopta el HTML SSR y conserva los nodos
+- islas: `/islands.html` hidrata dos widgets independientes y los desmonta sin afectarse
 - sin errores de consola ni wrappers `div`.
 
 E2E automatizado:
