@@ -24,7 +24,7 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 | `colibri-parser` | Prototipo | Scanner SFC y AST de template con spans (M01); no compila |
 | `colibri-ir` | Prototipo | IR semántica con spans y lowering SFC→IR (M02) |
 | `colibri-codegen` | Prototipo | SFC → programa Rust; `build`/`eval` con rustc real (M06b) |
-| `colibri-macros` | Prototipo | `view!` estático a IR; dinámico/eventos fallan en compilación (M03) |
+| `colibri-macros` | Prototipo | `#[component]` con props tipadas y `view!` dinámico/composición (M03/M09) |
 | `colibri-ssr` | Prototipo | Render HTML estático seguro y SSR dinámico con resolver explícito y errores por span (M02/M06a) |
 | `colibri-cli` | Prototipo | `check`, `render` (estático/`--bind`), `build` y `eval` |
 
@@ -41,6 +41,22 @@ let node = view! { <article class="card"><h1>"Título"</h1></article> };
 ```
 
 Ambas rutas producen el mismo IR normalizado y el mismo HTML estático; la suite de paridad lo verifica en cada ejecución de tests.
+
+## Componentes funcionales
+
+```rust
+use colibri_ir::Node;
+use colibri_macros::{component, view};
+
+#[component]
+pub fn Greeting(name: String) -> Node {
+    view! { <p>"Hola " {name}</p> }
+}
+
+let node = view! { <Greeting name="Ada"/> };
+```
+
+Props tipadas generadas por el macro, composición y `Option<T>` para null safety. Guía: [componentes y SSR](docs/guide/components.md).
 
 ## Primeros pasos
 

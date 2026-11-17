@@ -1,0 +1,107 @@
+# Componentes funcionales y SSR
+
+API para construir una app Colibrí hoy: funciones Rust con props tipadas, `view!` y render SSR. No hay runtime cliente todavía.
+
+## Definir un componente
+
+```rust
+use colibri_ir::Node;
+use colibri_macros::{component, view};
+
+#[component]
+pub fn Greeting(name: String) -> Node {
+    view! { <p>"Hola " {name}</p> }
+}
+```
+
+`#[component]` genera:
+
+```rust
+pub struct GreetingProps { pub name: String }
+pub fn Greeting(__colibri_props: GreetingProps) -> Node { /* ... */ }
+```
+
+- El nombre del componente debe ser `PascalCase`.
+- Los props son los parámetros de la función; se pasan por valor.
+- Se admiten tipos owned, incluidos `Option<T>`, `Vec<T>`, structs y enums.
+- No se admiten referencias, genéricos, `async`, `const` ni `unsafe` todavía.
+- El error de tipo lo da rustc: si un prop es `String`, `1` no compila.
+
+## Componer
+
+```rust
+#[component]
+pub fn Card(title: String, count: i32) -> Node {
+    view! {
+        <article class="card">
+            <h1>{title}</h1>
+            <span>{count}</span>
+        </article>
+    }
+}
+
+#[component]
+pub fn Dashboard(total: i32) -> Node {
+    view! {
+        <main>
+            <Card title="Productos" count={total}/>
+            <p>"Total: " {total}</p>
+        </main>
+    }
+}
+```
+
+Reglas de `view!`:
+
+- Texto literal entre comillas: `"Hola"`.
+- Expresión dinámica: `{total}`. Se formatea con `Display`; no hay evaluación de strings.
+- Atributos estáticos: `class="card"`.
+- Atributos dinámicos: `title={name}`.
+- Booleanos: `hidden`.
+- Componentes: `<Card title="Productos" count={total}/>`.
+- Por ahora los componentes no aceptan children; usa props.
+- Eventos (`on:click`) siguen bloqueados: pertenecen a M07 (DOM/WASM).
+
+## Servir con Axum
+
+```rust
+use axum::{response::Html, routing::get, Router};
+use colibri_ssr::render_static;
+
+async fn index() -> Html<String> {
+    let page = Dashboard(DashboardProps { total: 3 });
+    Html(render_static(&page).expect("valid page"))
+}
+
+#[tokio::main]
+async fn main() {
+    let app = Router::new().route("/", get(index));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+}
+```
+
+Dependencias del app:
+
+```toml
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+colibri-ir = { path = "../colibri/crates/colibri-ir" }
+colibri-macros = { path = "../colibri/crates/colibri-macros" }
+colibri-ssr = { path = "../colibri/crates/colibri-ssr" }
+```
+
+## Seguridad
+
+- `render_static` escapa texto y atributos, valida URLs y rechaza tags/atributos peligrosos.
+- No construyas HTML concatenando strings fuera de `view!`/`colibri-ssr`.
+- Los props `Option<T>` son la vía de null safety; no hay `null`.
+
+## Límites actuales
+
+- Sin cliente interactivo, eventos ni estado en navegador.
+- Sin componentes con children/slots.
+- Sin router de framework: usa Axum.
+- Sin SCSS integrado: compila Sass a CSS en el app o sirve CSS.
+- Sin hydration, islands ni streaming.

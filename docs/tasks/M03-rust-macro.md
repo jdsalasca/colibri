@@ -25,6 +25,10 @@ No introducir hooks tipo React, HMR, Vite, runtime DOM, SSR dinámico ni APIs de
 ## Handoff
 Ejemplo `.rs` que compila, salida IR/plan y limitaciones de Rust token syntax.
 
+## M03b — componentes funcionales (ADR 0009)
+
+`#[component]` genera `<Nombre>Props` desde los parámetros y una función pública con ese struct; `view!` acepta `{expr}`, atributos dinámicos y llamadas `<Componente prop=.../>`. Tests: props tipadas, composición y `Option`/null safety. Sin children/slots, eventos ni runtime cliente. Guía: [`docs/guide/components.md`](../guide/components.md).
+
 Implementado en `colibri-macros` con `syn`/`quote` (ADR 0005):
 
 ```rust
