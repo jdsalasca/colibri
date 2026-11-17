@@ -325,11 +325,52 @@ fn node_tokens(node: &ViewNode, backend: Backend) -> Result<TokenStream2> {
         ViewNode::Element(element) if element.tag == "Fragment" => {
             fragment_tokens(element, backend)
         }
+        ViewNode::Element(element) if element.tag == "Dynamic" => dynamic_tokens(element, backend),
         ViewNode::Element(element) if is_component(&element.tag) => {
             component_tokens(element, backend)
         }
         ViewNode::Element(element) => element_tokens(element, backend),
     }
+}
+
+fn dynamic_tokens(element: &ViewElement, backend: Backend) -> Result<TokenStream2> {
+    if backend != Backend::Dom {
+        return Err(syn::Error::new(
+            element.tag_span,
+            "Dynamic requires dom! and the client runtime",
+        ));
+    }
+    if !element.children.is_empty() {
+        return Err(syn::Error::new(
+            element.tag_span,
+            "Dynamic does not accept children; use nodes={closure}",
+        ));
+    }
+    let mut nodes = None;
+    for attribute in &element.attributes {
+        if attribute.name != "nodes" {
+            return Err(syn::Error::new(
+                element.tag_span,
+                "Dynamic only accepts nodes={closure}",
+            ));
+        }
+        let ViewAttributeValue::Dynamic(expression) = &attribute.value else {
+            return Err(syn::Error::new(
+                element.tag_span,
+                "Dynamic nodes must be a closure returning Vec<View>",
+            ));
+        };
+        nodes = Some(expression);
+    }
+    let nodes = nodes.ok_or_else(|| {
+        syn::Error::new(
+            element.tag_span,
+            "Dynamic requires nodes={closure returning Vec<View>}",
+        )
+    })?;
+    Ok(quote! {
+        ::colibri_dom::View::DynamicFragment(::std::rc::Rc::new(#nodes))
+    })
 }
 
 fn element_tokens(element: &ViewElement, backend: Backend) -> Result<TokenStream2> {

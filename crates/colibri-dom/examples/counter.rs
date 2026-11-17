@@ -39,6 +39,16 @@ mod wasm {
             Ok::<_, String>(42_i32)
         });
         let manuals_text = manuals.clone();
+        let visible = use_state(true);
+        let visible_click = visible.clone();
+        let visible_render = visible.clone();
+        let conditional = move || {
+            if visible_render.get() {
+                vec![dom! { <p class="conditional">"bloque condicional visible"</p> }]
+            } else {
+                Vec::new()
+            }
+        };
 
         let view = dom! {
             <main class="counter">
@@ -51,6 +61,10 @@ mod wasm {
                         Resource::Ready(total) => format!("{total} manuales listos"),
                         Resource::Failed(error) => format!("error: {error}"),
                     }}</p>
+                    <Dynamic nodes={conditional}/>
+                    <button type="button" class="toggle" on:click={move |_event| visible_click.update(|v| *v = !*v)}>
+                        "toggle bloque"
+                    </button>
                     <button type="button" on:click={move |_event| count_click.update(|n| *n += 1)}>
                         "+1"
                     </button>

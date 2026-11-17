@@ -1,4 +1,5 @@
 use colibri_core::{use_effect, Effect};
+use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
@@ -15,6 +16,8 @@ pub enum View {
     Element(ElementView),
     /// A group of views rendered in order.
     Fragment(Vec<View>),
+    /// A fragment rebuilt when a tracked signal changes.
+    DynamicFragment(Rc<dyn Fn() -> Vec<View>>),
 }
 
 /// An HTML element in the runtime view tree.
@@ -118,7 +121,34 @@ impl MountState {
                     self.render_into(child, parent)?;
                 }
             }
+            View::DynamicFragment(render) => self.render_dynamic(render, parent)?,
         }
+        Ok(())
+    }
+
+    fn render_dynamic(
+        &mut self,
+        render: &Rc<dyn Fn() -> Vec<View>>,
+        parent: &Element,
+    ) -> Result<(), JsValue> {
+        let wrapper = self.document.create_element("div")?;
+        wrapper.set_attribute("data-colibri-dynamic", "")?;
+        wrapper.set_attribute("style", "display: contents")?;
+        parent.append_child(&wrapper)?;
+
+        let render = Rc::clone(render);
+        let container = wrapper.clone();
+        let current: Rc<RefCell<Option<MountHandle>>> = Rc::new(RefCell::new(None));
+        let slot = Rc::clone(&current);
+        let effect = use_effect(move || {
+            if let Some(handle) = slot.borrow_mut().take() {
+                handle.unmount();
+            }
+            if let Ok(handle) = mount(View::Fragment(render()), container.clone()) {
+                *slot.borrow_mut() = Some(handle);
+            }
+        });
+        self.effects.push(effect);
         Ok(())
     }
 
