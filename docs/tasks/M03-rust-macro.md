@@ -43,3 +43,5 @@ La raíz es `Node::Fragment`, igual que el lowering SFC. Texto se escribe como l
 Bloqueado a propósito con error de compilación: texto dinámico `{expr}`, atributos `{expr}`, `on:evento` y atributos con namespace. `#[component]`, props y children no se implementaron porque M04 no los necesita todavía. Los spans del IR de la ruta Rust son sintéticos (`file!()`, `0..0`); los errores de sintaxis sí usan el span real del token.
 
 Verificado: 5 pruebas unitarias de parsing, 3 de render, 3 de paridad, 2 doc-tests (uno `compile_fail`) y `cargo clippy -D warnings`.
+
+Ejemplo ejecutable: `cargo run -p colibri-macros --example static-card`.
