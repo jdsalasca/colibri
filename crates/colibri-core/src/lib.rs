@@ -2,7 +2,7 @@
 //! Automatic synchronous dependencies and batching are in the `reactive` module.
 //! There are still no DOM bindings, SSR hydration or asynchronous tracking.
 mod reactive;
-pub use reactive::{batch, use_effect, use_effect_with_cleanup, use_memo, use_state, Effect, Memo};
+pub use reactive::{batch, untrack, use_effect, use_effect_with_cleanup, use_memo, use_state, Effect, Memo};
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::rc::{Rc, Weak};

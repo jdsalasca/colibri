@@ -74,6 +74,22 @@ pub fn batch<R>(f: impl FnOnce() -> R) -> R {
     f()
 }
 
+struct UntrackGuard;
+
+impl Drop for UntrackGuard {
+    fn drop(&mut self) {
+        TRACKING.with(|stack| { stack.borrow_mut().pop(); });
+    }
+}
+
+/// Run a closure without registering reactive reads in its enclosing observer.
+/// Useful for teardown, logging and inspecting state without dependencies.
+pub fn untrack<R>(f: impl FnOnce() -> R) -> R {
+    TRACKING.with(|stack| stack.borrow_mut().push(Weak::new()));
+    let _guard = UntrackGuard;
+    f()
+}
+
 struct TrackingGuard;
 
 impl TrackingGuard {
@@ -203,7 +219,7 @@ impl Drop for Effect {
         self.observer.dependencies.borrow_mut().clear();
         if let Some(cleanup) = &self.cleanup {
             if let Some(f) = cleanup.borrow_mut().take() {
-                f();
+                untrack(f);
             }
         }
     }
@@ -244,7 +260,7 @@ pub fn use_effect_with_cleanup(
         // Do not hold a RefCell borrow while user cleanup code executes.
         let previous = slot.borrow_mut().take();
         if let Some(previous) = previous {
-            previous();
+            untrack(previous);
         }
         let next = callback();
         *slot.borrow_mut() = Some(next);
@@ -456,6 +472,32 @@ mod tests {
             *events.borrow(),
             vec!["run:0", "cleanup:0", "run:1", "cleanup:1"]
         );
+    }
+
+    #[test]
+    fn effect_cleanup_reads_are_not_tracked_as_dependencies() {
+        let source = use_state(0);
+        let unrelated = use_state(0);
+        let runs = Rc::new(Cell::new(0));
+        let effect = {
+            let source = source.clone();
+            let unrelated = unrelated.clone();
+            let runs = runs.clone();
+            use_effect_with_cleanup(move || {
+                source.get();
+                runs.set(runs.get() + 1);
+                let unrelated = unrelated.clone();
+                Box::new(move || {
+                    unrelated.get();
+                })
+            })
+        };
+        source.set(1);
+        assert_eq!(runs.get(), 2);
+        unrelated.set(1);
+        assert_eq!(runs.get(), 2);
+        drop(effect);
+        assert_eq!(unrelated.subscriber_count(), 0);
     }
 
     #[test]
