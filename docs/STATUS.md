@@ -7,9 +7,9 @@ Actualizado: 2026-11-16. Baseline M00 verificado en local sobre `main` (Windows 
 |---|---|---|
 | `colibri-core` | `Signal<T>` con suscripciones explícitas; `Scope` con callbacks de limpieza | autotracking, Memo, Effect, Scheduler, concurrencia, DOM |
 | `colibri-parser` | scanner SFC que ignora cierres dentro de strings/comentarios; AST de template con spans, atributos e interpolaciones; límites de tamaño/profundidad (M01) | lowering a IR, validación de expresiones Rust, HTML5 completo, entidades, SCSS |
-| `colibri-ir` | tipos preliminares `Component`/`Node`/`Attribute` | IR tipada, lowering, análisis semántico, grafo de dependencias |
-| `colibri-ssr` | escape HTML para subconjunto estático y rechazo de expresiones dinámicas | SSR dinámico, streaming, islas, hidratación |
-| `colibri-cli` | `check` de estructura SFC | compilación, `dev`, `build`, `preview`, `benchmark` |
+| `colibri-ir` | IR con spans: texto, texto dinámico, elementos, fragmentos, atributos y eventos; lowering SFC→IR (M02) | componentes/calls, props, control de flujo, análisis de dependencias, codegen |
+| `colibri-ssr` | render estático seguro desde IR; booleanos, void, allowlist de URLs y errores con span (M02) | SSR dinámico, streaming, islas, hidratación |
+| `colibri-cli` | `check` estructural y `render` HTML estático | compilación Rust/WASM, dev/build, preview, benchmark |
 | `packages/vite-plugin-colibri` | README de intención | plugin ejecutable |
 | `examples/` | bosquejos de sintaxis | aplicación compilable y ejecutable |
 
@@ -20,14 +20,16 @@ Actualizado: 2026-11-16. Baseline M00 verificado en local sobre `main` (Windows 
 - La configuración de CI existe, pero el estado de sus ejecuciones debe comprobarse en GitHub.
 - Los archivos de ejemplo `Counter.rs` y `Counter.colibri` son **sintaxis objetivo**, no una implementación compilable.
 - No existe todavía evidencia de ventajas respecto a React, Solid, Svelte, Leptos o JS.
+- El pipeline estático no evalúa expresiones ni eventos y no decodifica entidades HTML de entrada (`&amp;` se trata como texto literal). Los comentarios HTML se descartan en lowering.
 
 ## Registro de verificación
 | Comprobación | Estado |
 |---|---|
 | `cargo fmt --all --check` | Pasa en local (M00) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en local (M00) |
-| `cargo test --workspace` | Pasa en local: 23 pruebas (M00: 9, M01: 14) |
+| `cargo test --workspace` | Pasa en local: 34 pruebas (parser 19, IR 2, SSR 5, pipeline 6, core 2) |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
+| `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
 | CI de GitHub con `--check` | Pendiente: requiere push |
 | Browser/WASM | No implementado |

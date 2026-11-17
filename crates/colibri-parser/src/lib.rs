@@ -7,6 +7,11 @@
 use std::error::Error;
 use std::fmt;
 
+pub use colibri_ir::SourceSpan;
+
+pub mod lower;
+pub use lower::{lower, LoweringError};
+
 /// Refuse inputs larger than this before doing any work.
 pub const MAX_SOURCE_BYTES: usize = 1024 * 1024;
 /// Cap nesting so hostile input cannot exhaust the stack.
@@ -16,21 +21,6 @@ const VOID_ELEMENTS: &[&str] = &[
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
     "track", "wbr",
 ];
-
-/// Byte range in the original file. `end_byte` is exclusive.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SourceSpan {
-    pub file: String,
-    pub start_byte: usize,
-    pub end_byte: usize,
-}
-
-impl SourceSpan {
-    /// Source text covered by this span, or `None` if it is not a valid range.
-    pub fn text<'a>(&self, source: &'a str) -> Option<&'a str> {
-        source.get(self.start_byte..self.end_byte)
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {

@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 colibri-parser = { path = "../colibri-parser" }
+colibri-ssr = { path = "../colibri-ssr" }
 
 [lints]
 workspace = true

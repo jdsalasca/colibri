@@ -1,20 +1,74 @@
 //! Restricted static HTML renderer; dynamic expressions are not evaluated.
-use colibri_ir::{Attribute, Node};
+//!
+//! Every rejected construct returns a `RenderError` with the source span of the
+//! offending node so callers can point at the component source.
+
+use colibri_ir::{Attribute, Element, Node, SourceSpan};
 use std::error::Error;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum RenderError {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RenderErrorKind {
     DynamicContent,
     InvalidTag,
     InvalidAttribute,
     UnsafeAttribute,
     InvalidVoidElement,
+    UnresolvedComponent,
+}
+
+impl RenderErrorKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::DynamicContent => "dynamic-content",
+            Self::InvalidTag => "invalid-tag",
+            Self::InvalidAttribute => "invalid-attribute",
+            Self::UnsafeAttribute => "unsafe-attribute",
+            Self::InvalidVoidElement => "invalid-void-element",
+            Self::UnresolvedComponent => "unresolved-component",
+        }
+    }
+
+    fn message(self) -> &'static str {
+        match self {
+            Self::DynamicContent => {
+                "static rendering cannot evaluate dynamic content or event handlers"
+            }
+            Self::InvalidTag => "tag is not allowed in static rendering",
+            Self::InvalidAttribute => "attribute name is not valid",
+            Self::UnsafeAttribute => "attribute is unsafe in static rendering",
+            Self::InvalidVoidElement => "void elements cannot have children",
+            Self::UnresolvedComponent => "component tags must be resolved before static rendering",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RenderError {
+    pub kind: RenderErrorKind,
+    pub span: SourceSpan,
+}
+
+impl RenderError {
+    fn new(kind: RenderErrorKind, span: &SourceSpan) -> Self {
+        Self {
+            kind,
+            span: span.clone(),
+        }
+    }
 }
 
 impl fmt::Display for RenderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self:?}")
+        write!(
+            f,
+            "{}:{}..{}: [{}] {}",
+            self.span.file,
+            self.span.start_byte,
+            self.span.end_byte,
+            self.kind.as_str(),
+            self.kind.message()
+        )
     }
 }
 
@@ -63,80 +117,111 @@ fn is_void(tag: &str) -> bool {
 
 fn render_into(node: &Node, output: &mut String) -> Result<(), RenderError> {
     match node {
-        Node::Text(value) => output.push_str(&escape_html(value)),
-        Node::DynamicText { .. } => return Err(RenderError::DynamicContent),
-        Node::Fragment(nodes) => {
-            for child in nodes {
+        Node::Text { value, .. } => output.push_str(&escape_html(value)),
+        Node::DynamicText { span, .. } => {
+            return Err(RenderError::new(RenderErrorKind::DynamicContent, span));
+        }
+        Node::Fragment { children, .. } => {
+            for child in children {
                 render_into(child, output)?;
             }
         }
-        Node::Element(element) => {
-            let tag = element.tag.to_ascii_lowercase();
-            if !valid_name(&element.tag)
-                || matches!(
-                    tag.as_str(),
-                    "script"
-                        | "style"
-                        | "iframe"
-                        | "object"
-                        | "embed"
-                        | "svg"
-                        | "math"
-                        | "meta"
-                        | "base"
-                        | "link"
-                )
+        Node::Element(element) => render_element(element, output)?,
+    }
+    Ok(())
+}
+
+fn render_element(element: &Element, output: &mut String) -> Result<(), RenderError> {
+    let tag = element.tag.to_ascii_lowercase();
+    if element.tag.bytes().any(|byte| byte.is_ascii_uppercase()) {
+        return Err(RenderError::new(
+            RenderErrorKind::UnresolvedComponent,
+            &element.span,
+        ));
+    }
+    if !valid_name(&element.tag)
+        || matches!(
+            tag.as_str(),
+            "script"
+                | "style"
+                | "iframe"
+                | "object"
+                | "embed"
+                | "svg"
+                | "math"
+                | "meta"
+                | "base"
+                | "link"
+        )
+    {
+        return Err(RenderError::new(RenderErrorKind::InvalidTag, &element.span));
+    }
+    if is_void(&tag) && !element.children.is_empty() {
+        return Err(RenderError::new(
+            RenderErrorKind::InvalidVoidElement,
+            &element.span,
+        ));
+    }
+
+    output.push('<');
+    output.push_str(&element.tag);
+    for attribute in &element.attributes {
+        render_attribute(attribute, output)?;
+    }
+    output.push('>');
+    if !is_void(&tag) {
+        for child in &element.children {
+            render_into(child, output)?;
+        }
+        output.push_str("</");
+        output.push_str(&element.tag);
+        output.push('>');
+    }
+    Ok(())
+}
+
+fn render_attribute(attribute: &Attribute, output: &mut String) -> Result<(), RenderError> {
+    let (name, value, span) = match attribute {
+        Attribute::Static { name, value, span } => (name, Some(value), span),
+        Attribute::Boolean { name, span } => (name, None, span),
+        Attribute::Dynamic { span, .. } | Attribute::Event { span, .. } => {
+            return Err(RenderError::new(RenderErrorKind::DynamicContent, span));
+        }
+    };
+
+    let lower = name.to_ascii_lowercase();
+    if !valid_name(name) {
+        return Err(RenderError::new(RenderErrorKind::InvalidAttribute, span));
+    }
+    if lower.starts_with("on") || lower == "srcdoc" || lower == "style" {
+        return Err(RenderError::new(RenderErrorKind::UnsafeAttribute, span));
+    }
+
+    if let Some(value) = value {
+        if matches!(
+            lower.as_str(),
+            "href" | "src" | "action" | "formaction" | "xlink:href"
+        ) {
+            let normalized: String = value
+                .chars()
+                .filter(|ch| !ch.is_ascii_whitespace() && !ch.is_ascii_control())
+                .flat_map(char::to_lowercase)
+                .collect();
+            if ["javascript:", "vbscript:", "data:"]
+                .iter()
+                .any(|prefix| normalized.starts_with(prefix))
             {
-                return Err(RenderError::InvalidTag);
-            }
-            if is_void(&tag) && !element.children.is_empty() {
-                return Err(RenderError::InvalidVoidElement);
-            }
-            output.push('<');
-            output.push_str(&element.tag);
-            for attribute in &element.attributes {
-                let Attribute::Static { name, value } = attribute else {
-                    return Err(RenderError::DynamicContent);
-                };
-                let lower = name.to_ascii_lowercase();
-                if !valid_name(name) {
-                    return Err(RenderError::InvalidAttribute);
-                }
-                if lower.starts_with("on") || lower == "srcdoc" || lower == "style" {
-                    return Err(RenderError::UnsafeAttribute);
-                }
-                if matches!(
-                    lower.as_str(),
-                    "href" | "src" | "action" | "formaction" | "xlink:href"
-                ) {
-                    let normalized: String = value
-                        .chars()
-                        .filter(|ch| !ch.is_ascii_whitespace() && !ch.is_ascii_control())
-                        .flat_map(char::to_lowercase)
-                        .collect();
-                    if ["javascript:", "vbscript:", "data:"]
-                        .iter()
-                        .any(|prefix| normalized.starts_with(prefix))
-                    {
-                        return Err(RenderError::UnsafeAttribute);
-                    }
-                }
-                output.push(' ');
-                output.push_str(name);
-                output.push_str("=\"");
-                output.push_str(&escape_html(value));
-                output.push('"');
-            }
-            output.push('>');
-            if !is_void(&tag) {
-                for child in &element.children {
-                    render_into(child, output)?;
-                }
-                output.push_str("</");
-                output.push_str(&element.tag);
-                output.push('>');
+                return Err(RenderError::new(RenderErrorKind::UnsafeAttribute, span));
             }
         }
+        output.push(' ');
+        output.push_str(name);
+        output.push_str("=\"");
+        output.push_str(&escape_html(value));
+        output.push('"');
+    } else {
+        output.push(' ');
+        output.push_str(name);
     }
     Ok(())
 }
@@ -151,14 +236,29 @@ pub fn render_static(node: &Node) -> Result<String, RenderError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use colibri_ir::Element;
+
+    fn span(start: usize, end: usize) -> SourceSpan {
+        SourceSpan {
+            file: "test.colibri".into(),
+            start_byte: start,
+            end_byte: end,
+        }
+    }
 
     fn element(tag: &str, attributes: Vec<Attribute>, children: Vec<Node>) -> Node {
         Node::Element(Element {
             tag: tag.into(),
             attributes,
             children,
+            span: span(0, 1),
         })
+    }
+
+    fn text(value: &str) -> Node {
+        Node::Text {
+            value: value.into(),
+            span: span(0, 1),
+        }
     }
 
     #[test]
@@ -168,12 +268,36 @@ mod tests {
             vec![Attribute::Static {
                 name: "title".into(),
                 value: "a\"<b".into(),
+                span: span(0, 1),
             }],
-            vec![Node::Text("<hello>&".into())],
+            vec![text("<hello>&")],
         );
         assert_eq!(
             render_static(&node).unwrap(),
             "<p title=\"a&quot;&lt;b\">&lt;hello&gt;&amp;</p>"
+        );
+    }
+
+    #[test]
+    fn renders_boolean_and_void_attributes() {
+        let node = element(
+            "input",
+            vec![
+                Attribute::Static {
+                    name: "type".into(),
+                    value: "checkbox".into(),
+                    span: span(0, 1),
+                },
+                Attribute::Boolean {
+                    name: "checked".into(),
+                    span: span(0, 1),
+                },
+            ],
+            vec![],
+        );
+        assert_eq!(
+            render_static(&node).unwrap(),
+            "<input type=\"checkbox\" checked>"
         );
     }
 
@@ -184,19 +308,38 @@ mod tests {
             vec![Attribute::Static {
                 name: "href".into(),
                 value: " java\nscript:alert(1)".into(),
+                span: span(7, 9),
             }],
             vec![],
         );
-        assert_eq!(render_static(&node), Err(RenderError::UnsafeAttribute));
+        let error = render_static(&node).unwrap_err();
+        assert_eq!(error.kind, RenderErrorKind::UnsafeAttribute);
+        assert_eq!(error.span, span(7, 9));
     }
 
     #[test]
     fn does_not_evaluate_dynamic_content() {
+        let node = Node::DynamicText {
+            expression: "count".into(),
+            span: span(3, 10),
+        };
+        let error = render_static(&node).unwrap_err();
+        assert_eq!(error.kind, RenderErrorKind::DynamicContent);
+        assert_eq!(error.span, span(3, 10));
+    }
+
+    #[test]
+    fn rejects_unresolved_components_and_void_children() {
+        let component = element("Card", vec![], vec![]);
         assert_eq!(
-            render_static(&Node::DynamicText {
-                expression: "count".into()
-            }),
-            Err(RenderError::DynamicContent)
+            render_static(&component).unwrap_err().kind,
+            RenderErrorKind::UnresolvedComponent
+        );
+
+        let void = element("br", vec![], vec![text("x")]);
+        assert_eq!(
+            render_static(&void).unwrap_err().kind,
+            RenderErrorKind::InvalidVoidElement
         );
     }
 }

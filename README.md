@@ -22,9 +22,9 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 |---|---|---|
 | `colibri-core` | Prototipo | `Signal<T>`, suscripciones y limpieza por `Scope` (notificación síncrona; sin seguimiento automático) |
 | `colibri-parser` | Prototipo | Scanner SFC y AST de template con spans (M01); no compila |
-| `colibri-ir` | Modelo inicial | Nodos compartidos para vistas estáticas y enlaces dinámicos |
-| `colibri-ssr` | Prototipo | Genera HTML seguro para nodos **estáticos** del IR |
-| `colibri-cli` | Prototipo | Comando `check` para validar estructura SFC |
+| `colibri-ir` | Prototipo | IR semántica con spans y lowering SFC→IR (M02) |
+| `colibri-ssr` | Prototipo | Render HTML estático seguro con errores por span (M02) |
+| `colibri-cli` | Prototipo | `check` estructural y `render` HTML estático |
 
 ## Primeros pasos
 
@@ -35,9 +35,10 @@ cargo fmt --all --check
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo run -p colibri-cli -- check examples/counter.colibri
+cargo run -p colibri-cli -- render examples/static-card.colibri
 ```
 
-> `colibri check` valida **estructura de bloques**, no tipos Rust, atributos HTML, bindings ni interactividad. El compilador y el plugin Vite todavía no están implementados.
+> `colibri check` valida **estructura de bloques y template**, no tipos Rust. `colibri render` sólo soporta plantillas estáticas: una interpolación o un evento produce un diagnóstico con span. El compilador y el plugin Vite todavía no están implementados.
 
 ## Proyecto
 

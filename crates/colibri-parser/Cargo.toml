@@ -3,5 +3,11 @@ name = "colibri-parser"
 version.workspace = true
 edition.workspace = true
 
+[dependencies]
+colibri-ir = { path = "../colibri-ir" }
+
+[dev-dependencies]
+colibri-ssr = { path = "../colibri-ssr" }
+
 [lints]
 workspace = true

@@ -1,0 +1,6 @@
+<template>
+  <article class="card">
+    <h1>Colibrí</h1>
+    <p>HTML estático, sin runtime de cliente.</p>
+  </article>
+</template>

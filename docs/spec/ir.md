@@ -1,6 +1,6 @@
 # IR semántica compartida — contrato evolutivo
 
-**Estado:** propuesta. `colibri-ir` actualmente tiene tipos mínimos, no una IR tipada ni lowering.
+**Estado:** implementación parcial (M02). `colibri-ir` ya contiene la IR que consume `colibri-ssr`; aún no hay componentes, props, control de flujo ni codegen.
 
 ## Por qué
 Ambas fuentes (`.rs` vía macro y `.colibri` vía parser) deben normalizarse en un **modelo semántico común**. Una IR de compilador no implica almacenar un Virtual DOM completo en el navegador.
@@ -24,6 +24,23 @@ Attribute { name, value_kind, escape_context }
 EventBinding { event, handler_expr, lifecycle_owner }
 Conditional / KeyedLoop (posteriores al MVP)
 ~~~
+
+## Implementado hoy (M02)
+~~~rust
+Component { name, root: Node, span }
+Node::Text { value, span }
+Node::DynamicText { expression, span }
+Node::Element(Element)
+Node::Fragment { children, span }
+Element { tag, attributes, children, span }
+Attribute::Static { name, value, span }
+Attribute::Boolean { name, span }
+Attribute::Dynamic { name, expression, span }
+Attribute::Event { name, handler, span } // name sin el prefijo "on:"
+SourceSpan { file, start_byte, end_byte } // end exclusivo
+~~~
+
+El lowering vive en `colibri_parser::lower` y rechaza expresiones vacías y eventos con valor literal. Las expresiones dinámicas se conservan como `DynamicText`/`Dynamic`/`Event`; el renderizador estático las rechaza con su span en lugar de omitirlas. Los comentarios HTML se descartan.
 
 ## Invariantes
 - Spans preservan ubicación del archivo fuente (byte offset UTF-8 y ruta).

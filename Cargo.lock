@@ -7,6 +7,7 @@ name = "colibri-cli"
 version = "0.0.1"
 dependencies = [
  "colibri-parser",
+ "colibri-ssr",
 ]
 
 [[package]]
@@ -20,6 +21,10 @@ version = "0.0.1"
 [[package]]
 name = "colibri-parser"
 version = "0.0.1"
+dependencies = [
+ "colibri-ir",
+ "colibri-ssr",
+]
 
 [[package]]
 name = "colibri-ssr"
