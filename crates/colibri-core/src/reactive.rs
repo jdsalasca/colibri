@@ -514,10 +514,85 @@ impl Scope {
     }
 }
 
+/// State plus a reducer, like React's `useReducer`.
+///
+/// The reducer receives the current value and an action and returns the next
+/// value. Dispatch is synchronous; readers subscribe like any signal.
+pub struct ReducerState<T, A> {
+    value: Signal<T>,
+    reducer: ReducerFn<T, A>,
+}
+
+type ReducerFn<T, A> = Rc<dyn Fn(&T, A) -> T>;
+
+impl<T: Clone, A> Clone for ReducerState<T, A> {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value.clone(),
+            reducer: Rc::clone(&self.reducer),
+        }
+    }
+}
+
+impl<T: Clone + 'static, A> ReducerState<T, A> {
+    /// Current value.
+    pub fn get(&self) -> T {
+        self.value.get()
+    }
+
+    /// Apply one action to the current value.
+    pub fn dispatch(&self, action: A) {
+        let next = (self.reducer)(&self.value.get(), action);
+        self.value.set(next);
+    }
+
+    /// Read the underlying signal (for bindings and memos).
+    pub fn signal(&self) -> &Signal<T> {
+        &self.value
+    }
+}
+
+/// Create reducer state with an initial value.
+pub fn use_reducer<T, A>(initial: T, reducer: impl Fn(&T, A) -> T + 'static) -> ReducerState<T, A>
+where
+    T: Clone + 'static,
+{
+    ReducerState {
+        value: use_state(initial),
+        reducer: Rc::new(reducer),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::cell::Cell;
+
+    #[test]
+    fn reducer_dispatches_and_notifies() {
+        #[derive(Clone, Copy)]
+        enum Action {
+            Add(i32),
+            Reset,
+        }
+        let state = use_reducer(0, |value: &i32, action: Action| match action {
+            Action::Add(amount) => value + amount,
+            Action::Reset => 0,
+        });
+        let seen = Rc::new(Cell::new(0));
+        let effect = {
+            let state = state.clone();
+            let seen = Rc::clone(&seen);
+            use_effect(move || seen.set(state.get()))
+        };
+        state.dispatch(Action::Add(5));
+        assert_eq!(state.get(), 5);
+        assert_eq!(seen.get(), 5);
+        state.dispatch(Action::Reset);
+        assert_eq!(state.get(), 0);
+        assert_eq!(seen.get(), 0);
+        drop(effect);
+    }
 
     #[test]
     fn use_state_and_effect_track_get_and_stop_on_drop() {

@@ -29,6 +29,23 @@ fn Panel(title: String, children: Vec<Node>) -> Node {
     }
 }
 
+#[component]
+fn ThemeLabel() -> Node {
+    let theme = colibri_core::use_context::<&'static str>().unwrap_or("light");
+    view! { <span>{theme}</span> }
+}
+
+#[component]
+fn ThemedSection() -> Node {
+    colibri_core::provide_context("dark");
+    view! { <section><ThemeLabel/></section> }
+}
+
+#[component]
+fn UnscopedSection() -> Node {
+    view! { <div><ThemeLabel/></div> }
+}
+
 #[test]
 fn renders_component_with_typed_props() {
     let node = Greeting(GreetingProps {
@@ -58,6 +75,18 @@ fn option_props_are_null_safe() {
     assert_eq!(
         render_static(&MaybeName(MaybeNameProps { name: None })).unwrap(),
         "<p>sin nombre</p>"
+    );
+}
+
+#[test]
+fn context_flows_to_children_and_is_scoped() {
+    assert_eq!(
+        render_static(&ThemedSection(ThemedSectionProps {})).unwrap(),
+        "<section><span>dark</span></section>"
+    );
+    assert_eq!(
+        render_static(&UnscopedSection(UnscopedSectionProps {})).unwrap(),
+        "<div><span>light</span></div>"
     );
 }
 

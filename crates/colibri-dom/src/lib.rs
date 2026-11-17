@@ -13,8 +13,8 @@ mod state;
 
 #[cfg(target_arch = "wasm32")]
 pub use browser::{
-    attach_effects, hydrate, hydrate_island, mount, Attribute, ElementView, EventBinding,
-    KeyedView, MountHandle, View,
+    attach_effects, hydrate, hydrate_island, mount, Attribute, ElementRef, ElementView,
+    EventBinding, KeyedView, MountHandle, View,
 };
 #[cfg(target_arch = "wasm32")]
 pub use resource::use_async;

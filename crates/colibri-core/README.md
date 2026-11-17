@@ -30,6 +30,8 @@ drop(scope); // unregister
 - `use_memo` retorna `Memo<T>` read-only, requiere `T: Clone + PartialEq + 'static`. Eager, cache del resultado, no notifica si resultado igual.
 - `use_effect` se ejecuta inmediatamente y observa señales leídas **sincrónicamente**. La suscripción dura mientras viva el handle `Effect`.
 - `use_effect_with_cleanup` devuelve una función de cleanup, ejecutada antes del siguiente run y al soltar Effect.
+- `use_reducer(initial, reducer)` devuelve `ReducerState` clonable con `get()`, `dispatch(action)` y `signal()`.
+- `provide_context(value)`/`use_context::<T>()` comparten un valor tipado con scope; `#[component]` lo cierra al terminar.
 - `batch` agrupa cambios para deduplicar efectos; subscribers manuales aún son síncronos.
 - `use_lazy(compute)` calcula una vez al primer `get` y cachea; no se invalida.
 - `Resource<T>` (`Loading/Ready/Failed`) modela datos asíncronos; `use_async` vive en `colibri-dom` wasm.

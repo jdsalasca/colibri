@@ -20,8 +20,8 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 
 | Paquete | Estado | Función |
 |---|---|---|
-| `colibri-core` | Prototipo | Signals, scopes y motor con `use_state`, `use_memo`, `use_effect`, `use_lazy`, `Resource`, `batch`, ciclos recuperables (`take_error`), `stats()` y `Scope::dispose` |
-| `colibri-dom` | Prototipo | Runtime DOM/WASM: `View`, `dom!`, `mount`, `hydrate`, `hydrate_island`, `use_hydrated_state`, effects con ownership de componente, eventos, `use_async`/`Resource` con cancelación cooperativa, `Dynamic` y `Keyed` (M07/M09 parcial) |
+| `colibri-core` | Prototipo | Signals, scopes, contexto tipado y motor con `use_state`, `use_memo`, `use_reducer`, `use_effect`, `use_lazy`, `Resource`, `batch`, ciclos recuperables (`take_error`), `stats()` y `Scope::dispose` |
+| `colibri-dom` | Prototipo | Runtime DOM/WASM: `View`, `dom!`, `mount`, `hydrate`, `hydrate_island`, `use_hydrated_state`, refs de elemento, effects con ownership de componente, eventos, `use_async`/`Resource` con cancelación cooperativa, `Dynamic` y `Keyed` (M07/M09 parcial) |
 | `colibri-parser` | Prototipo | Scanner SFC y AST de template con spans (M01); no compila |
 | `colibri-ir` | Prototipo | IR semántica con spans y lowering SFC→IR (M02) |
 | `colibri-codegen` | Prototipo | SFC → programa Rust; `build`/`eval` con rustc real (M06b) |
@@ -85,7 +85,7 @@ pub fn Counter() -> View {
 }
 ```
 
-Build y demo: [`colibri-dom/demo`](crates/colibri-dom/demo/README.md). `dom!` acepta eventos y actualiza bindings sin reconstruir el árbol. `use_async` devuelve `Signal<Resource<T>>`, `use_lazy` cachea un cálculo, `Dynamic` reconstruye condicionales, `Keyed` reordena preservando identidad y foco, `hydrate` adopta HTML SSR estático, `hydrate_island` activa islas y `use_hydrated_state` conserva el estado sembrado con `colibri_ssr::state_script`.
+Build y demo: [`colibri-dom/demo`](crates/colibri-dom/demo/README.md). `dom!` acepta eventos y actualiza bindings sin reconstruir el árbol. `use_async` devuelve `Signal<Resource<T>>`, `use_lazy` cachea un cálculo, `use_reducer` da estado con acciones, `provide_context`/`use_context` comparten valores con scope, `ref={...}` recibe el nodo al montar, `Dynamic` reconstruye condicionales, `Keyed` reordena preservando identidad y foco, `hydrate` adopta HTML SSR estático, `hydrate_island` activa islas y `use_hydrated_state` conserva el estado sembrado con `colibri_ssr::state_script`.
 
 ## Primeros pasos
 
@@ -158,7 +158,7 @@ El repositorio oficial es [jdsalasca/colibri](https://github.com/jdsalasca/colib
 Proyecto inicial. Antes de aceptar código de terceros o distribuir un framework público, decidir explícitamente licencia, política de contribuciones y política de seguridad. **No se ha elegido una licencia aún.** No copiar código de los frameworks estudiados sin revisar licencias, avisos y obligaciones.
 ## Investigación y motor reactivo
 
-- [API experimental del core](crates/colibri-core/README.md): `use_state`, `use_memo`, `use_effect`, cleanup, `batch`, `take_error()` y `stats()`.
+- [API experimental del core](crates/colibri-core/README.md): `use_state`, `use_memo`, `use_reducer`, `use_effect`, contexto, cleanup, `batch`, `take_error()` y `stats()`.
 - [Investigación sobre rendimiento web Rust/WASM](docs/research/2026-11-rust-web-performance.md): fuentes primarias, hipótesis falsables y diseño de benchmarks.
 - [Precedentes reactivos](precedentes/reactivity-and-web-performance.md): React, Solid, Svelte, Leptos, Dioxus y otros.
 

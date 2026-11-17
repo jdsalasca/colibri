@@ -1,10 +1,13 @@
 //! Minimal single-threaded reactive primitives for experimental research.
 //! Automatic synchronous dependencies and batching live in `reactive`.
 //! Browser rendering, async tracking and hydration are still unimplemented.
+mod context;
 mod reactive;
+pub use context::{provide_context, use_context, with_context_scope};
 pub use reactive::{
     batch, effect_scope_active, take_error, untrack, use_effect, use_effect_with_cleanup, use_memo,
-    use_state, with_effect_scope, without_effect_scope, Effect, Memo, ReactiveError,
+    use_reducer, use_state, with_effect_scope, without_effect_scope, Effect, Memo, ReactiveError,
+    ReducerState,
 };
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;

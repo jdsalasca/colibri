@@ -146,6 +146,23 @@ test('hydrates independent islands on a server-rendered page', async ({ page }) 
   expect(errors).toEqual([]);
 });
 
+test('context theme and ref focus work like React primitives', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('input.search')).toBeFocused();
+
+  const panel = page.locator('.theme-panel');
+  await expect(panel).toHaveClass(/light/);
+  await expect(page.locator('.theme-label')).toHaveText('tema claro');
+
+  await page.locator('button.theme-toggle').click();
+  await expect(panel).toHaveClass(/dark/);
+  await expect(page.locator('.theme-label')).toHaveText('tema oscuro');
+
+  await page.locator('button.theme-toggle').click();
+  await expect(panel).toHaveClass(/light/);
+  await expect(page.locator('.theme-label')).toHaveText('tema claro');
+});
+
 test('click to DOM latency stays bounded against a vanilla baseline', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.value')).toHaveText('0');

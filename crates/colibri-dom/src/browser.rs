@@ -1,4 +1,4 @@
-use colibri_core::{use_effect, without_effect_scope, Effect};
+use colibri_core::{use_effect, with_context_scope, without_effect_scope, Effect};
 use colibri_ssr::validate_attribute;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -42,6 +42,9 @@ pub struct KeyedView {
     pub view: View,
 }
 
+/// A callback that receives the created element once (React-style ref).
+pub type ElementRef = Rc<dyn Fn(&Element)>;
+
 /// An HTML element in the runtime view tree.
 pub struct ElementView {
     /// Tag name, e.g. `button`.
@@ -50,6 +53,8 @@ pub struct ElementView {
     pub attributes: Vec<Attribute>,
     /// Event listeners.
     pub events: Vec<EventBinding>,
+    /// Callbacks invoked with the element after creation or hydration.
+    pub refs: Vec<ElementRef>,
     /// Child views.
     pub children: Vec<View>,
 }
@@ -109,6 +114,34 @@ impl MountHandle {
     pub(crate) fn adopt(&mut self, container: Element) {
         self.container = container;
     }
+}
+
+thread_local! {
+    static PENDING_REFS: RefCell<Vec<(ElementRef, Element)>> = const { RefCell::new(Vec::new()) };
+}
+
+fn queue_ref(callback: &ElementRef, element: &Element) {
+    PENDING_REFS.with(|queue| {
+        queue
+            .borrow_mut()
+            .push((Rc::clone(callback), element.clone()));
+    });
+}
+
+/// Run queued element refs; root mounts and connected dynamic updates call this.
+fn flush_refs() {
+    let queued = PENDING_REFS.with(|queue| std::mem::take(&mut *queue.borrow_mut()));
+    for (callback, element) in queued {
+        callback(&element);
+    }
+}
+
+fn queued_refs() -> usize {
+    PENDING_REFS.with(|queue| queue.borrow().len())
+}
+
+fn discard_refs_after(keep: usize) {
+    PENDING_REFS.with(|queue| queue.borrow_mut().truncate(keep));
 }
 
 impl Drop for MountHandle {
@@ -189,7 +222,7 @@ impl MountState {
             let active = document.active_element();
             let mut old = slot.borrow_mut();
             let mut next = HashMap::new();
-            for keyed in render() {
+            for keyed in with_context_scope(|| render()) {
                 let KeyedView { key, view } = keyed;
                 if next.contains_key(&key) {
                     web_sys::console::error_1(&JsValue::from_str(&format!("duplicate key: {key}")));
@@ -205,7 +238,7 @@ impl MountState {
                 let Ok(temp) = document.create_element("div") else {
                     continue;
                 };
-                match mount(view, temp.clone()) {
+                match without_effect_scope(|| mount_inner(view, temp.clone(), false)) {
                     Ok(mut handle) => {
                         let children = temp.child_nodes();
                         let mut roots = Vec::new();
@@ -227,6 +260,9 @@ impl MountState {
                 entry.handle.unmount();
             }
             *old = next;
+            if parent.is_connected() {
+                flush_refs();
+            }
             if let Some(active) = active {
                 let node: &Node = active.unchecked_ref();
                 if node.is_connected() {
@@ -264,7 +300,13 @@ impl MountState {
             let Ok(temp) = document.create_element("div") else {
                 return;
             };
-            match mount(View::Fragment(render()), temp.clone()) {
+            match without_effect_scope(|| {
+                mount_inner(
+                    View::Fragment(with_context_scope(|| render())),
+                    temp.clone(),
+                    false,
+                )
+            }) {
                 Ok(mut handle) => {
                     if let Some(old) = slot.borrow_mut().take() {
                         old.unmount();
@@ -276,6 +318,9 @@ impl MountState {
                     }
                     handle.adopt(parent.clone());
                     *slot.borrow_mut() = Some(handle);
+                    if parent.is_connected() {
+                        flush_refs();
+                    }
                 }
                 Err(error) => web_sys::console::error_1(&error),
             }
@@ -309,6 +354,9 @@ impl MountState {
             self.render_into(child, &element)?;
         }
         parent.append_child(&element)?;
+        for callback in &view.refs {
+            queue_ref(callback, &element);
+        }
         Ok(())
     }
 
@@ -399,6 +447,9 @@ impl MountState {
                     self.hydrate_into(child, &mut children)?;
                 }
                 children.finish()?;
+                for callback in &element.refs {
+                    queue_ref(callback, &existing);
+                }
             }
             View::Fragment(children) => {
                 for child in children {
@@ -546,15 +597,16 @@ pub fn attach_effects(view: View, effects: Vec<Effect>) -> View {
 
 /// Mount a view inside `container`. The returned handle owns effects/listeners.
 pub fn mount(view: View, container: Element) -> Result<MountHandle, JsValue> {
-    without_effect_scope(|| mount_inner(view, container))
+    without_effect_scope(|| mount_inner(view, container, true))
 }
 
-fn mount_inner(view: View, container: Element) -> Result<MountHandle, JsValue> {
+fn mount_inner(view: View, container: Element, flush: bool) -> Result<MountHandle, JsValue> {
     let document = container
         .owner_document()
         .ok_or_else(|| JsValue::from_str("container must belong to a document"))?;
     let container_node: &Node = container.unchecked_ref();
     let roots_before = container_node.child_nodes().length();
+    let refs_before = queued_refs();
     let mut state = MountState {
         document,
         effects: Vec::new(),
@@ -562,6 +614,7 @@ fn mount_inner(view: View, container: Element) -> Result<MountHandle, JsValue> {
     };
     if let Err(error) = state.render_into(&view, &container) {
         state.rollback(&container, roots_before as usize);
+        discard_refs_after(refs_before);
         return Err(error);
     }
 
@@ -570,12 +623,16 @@ fn mount_inner(view: View, container: Element) -> Result<MountHandle, JsValue> {
         .filter_map(|index| children.item(index))
         .collect();
 
-    Ok(MountHandle {
+    let handle = MountHandle {
         container,
         roots,
         effects: state.effects,
         listeners: state.listeners,
-    })
+    };
+    if flush {
+        flush_refs();
+    }
+    Ok(handle)
 }
 
 /// Adopt server-rendered DOM instead of rebuilding it.
@@ -589,6 +646,7 @@ pub fn hydrate(view: View, container: Element) -> Result<MountHandle, JsValue> {
             .owner_document()
             .ok_or_else(|| JsValue::from_str("container must belong to a document"))?;
         let container_node: &Node = container.unchecked_ref();
+        let refs_before = queued_refs();
         let mut state = MountState {
             document,
             effects: Vec::new(),
@@ -597,10 +655,12 @@ pub fn hydrate(view: View, container: Element) -> Result<MountHandle, JsValue> {
         let mut cursor = ChildCursor::new(&container);
         if let Err(error) = state.hydrate_into(&view, &mut cursor) {
             drop(state);
+            discard_refs_after(refs_before);
             return Err(error);
         }
         if let Err(error) = cursor.finish() {
             drop(state);
+            discard_refs_after(refs_before);
             return Err(error);
         }
 
@@ -609,12 +669,14 @@ pub fn hydrate(view: View, container: Element) -> Result<MountHandle, JsValue> {
             .filter_map(|index| children.item(index))
             .collect();
 
-        Ok(MountHandle {
+        let handle = MountHandle {
             container,
             roots,
             effects: state.effects,
             listeners: state.listeners,
-        })
+        };
+        flush_refs();
+        Ok(handle)
     })
 }
 

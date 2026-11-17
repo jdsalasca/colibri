@@ -430,6 +430,12 @@ fn element_tokens(element: &ViewElement, backend: Backend) -> Result<TokenStream
 fn ssr_element_tokens(element: &ViewElement) -> Result<TokenStream2> {
     let tag = &element.tag;
     let span = span_tokens();
+    if let Some(attribute) = element.attributes.iter().find(|item| item.name == "ref") {
+        return Err(syn::Error::new(
+            attribute.span,
+            "ref requires dom! and the client runtime",
+        ));
+    }
     let attributes = element
         .attributes
         .iter()
@@ -454,7 +460,18 @@ fn dom_element_tokens(element: &ViewElement) -> Result<TokenStream2> {
     let tag = &element.tag;
     let mut attributes = Vec::new();
     let mut events = Vec::new();
+    let mut refs = Vec::new();
     for attribute in &element.attributes {
+        if attribute.name == "ref" {
+            let ViewAttributeValue::Dynamic(expression) = &attribute.value else {
+                return Err(syn::Error::new(
+                    attribute.span,
+                    "ref requires a closure: ref={move |element| ...}",
+                ));
+            };
+            refs.push(quote! { ::std::rc::Rc::new(#expression) });
+            continue;
+        }
         match &attribute.value {
             ViewAttributeValue::Event { event, handler } => {
                 events.push(quote! {
@@ -477,6 +494,7 @@ fn dom_element_tokens(element: &ViewElement) -> Result<TokenStream2> {
             tag: #tag.to_owned(),
             attributes: ::std::vec![#(#attributes),*],
             events: ::std::vec![#(#events),*],
+            refs: ::std::vec![#(#refs),*],
             children: ::std::vec![#(#children),*],
         })
     })
@@ -735,8 +753,10 @@ fn expand_component(function: ItemFn) -> Result<TokenStream2> {
         #vis fn #name(__colibri_props: #props_ident) #output {
             let (__colibri_value, __colibri_effects) =
                 ::colibri_core::with_effect_scope(|| {
-                    let #props_ident { #(#field_names),* } = __colibri_props;
-                    #impl_ident(#(#field_names),*)
+                    ::colibri_core::with_context_scope(|| {
+                        let #props_ident { #(#field_names),* } = __colibri_props;
+                        #impl_ident(#(#field_names),*)
+                    })
                 });
             #attach
         }

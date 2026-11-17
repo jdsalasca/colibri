@@ -28,6 +28,8 @@ batch(|| {
 - `use_memo(compute) -> Memo<T>`: derivación eager con igualdad (`PartialEq`); no notifica si el valor no cambió.
 - `use_effect(fn)`: efecto síncrono; se re-ejecuta cuando cambian las señales leídas. Dentro de un `#[component]` que devuelve `View`, el montaje es dueño del efecto aunque ignores el handle.
 - `use_effect_with_cleanup(fn -> cleanup)`: cleanup antes de re-run y al desmontar.
+- `use_reducer(initial, reducer)`: estado con acciones; `dispatch`, `get`, `signal`.
+- `provide_context(value)` / `use_context::<T>()`: contexto tipado y con scope por componente.
 - `with_effect_scope(fn) -> (R, Vec<Effect>)`: ejecuta `fn` y recoge los efectos creados dentro; es la base del ownership por componente.
 - `batch(fn)`: agrupa cambios para que los efectos vean el estado final.
 - `untrack(fn)`: lee señales sin registrar dependencia.
@@ -93,6 +95,57 @@ let count = colibri_dom::use_hydrated_state("counter", 0_i32);
 - Clave ausente o tipo distinto: usa el valor inicial y lo reporta por consola.
 - El script se lee una vez y es público: nunca pongas secretos.
 - Ver [ADR 0018](../adr/0018-hydration-state.md).
+
+## Contexto
+
+```rust
+#[component]
+pub fn App() -> View {
+    provide_context(Theme::Dark);
+    dom! { <Toolbar/> }
+}
+
+#[component]
+pub fn Toolbar() -> View {
+    let theme = use_context::<Theme>().unwrap_or(Theme::Light);
+    dom! { <p>{format!("{theme:?}")}</p> }
+}
+```
+
+- El valor solo lo ven los componentes construidos **después** del `provide_context` en el mismo cuerpo.
+- `#[component]` cierra el scope al terminar; `Dynamic`/`Keyed` abren uno por render.
+- Funciona igual en `view!` (SSR) y en `dom!`.
+- No hay `<Provider>`: los children se construyen antes de llamar al padre.
+
+## Reducer
+
+```rust
+#[derive(Clone, Copy)]
+enum Action { Add(i32) }
+
+let counter = use_reducer(0, |value: &i32, action: Action| match action {
+    Action::Add(amount) => value + amount,
+});
+counter.dispatch(Action::Add(1));
+let value = counter.get();
+```
+
+`ReducerState` es clonable, expone `get()`, `dispatch(action)` y `signal()`; effects y memos reaccionan al signal interno.
+
+## Refs
+
+```rust
+dom! {
+    <input
+        class="search"
+        ref={move |element| element.unchecked_ref::<web_sys::HtmlElement>().focus()}
+    />
+}
+```
+
+- El callback corre al final del montaje/hidratación, con el nodo ya conectado (por eso `focus()` funciona).
+- Solo `dom!`; `view!` rechaza `ref`.
+- No se re-ejecuta al reutilizar un nodo `Keyed` y no tiene cleanup: usa effects para suscripciones.
 
 ## Hidratación
 

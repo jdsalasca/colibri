@@ -1,12 +1,12 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-17. M00-M07 parcial y M09 básico (DOM/WASM, async, lazy, Dynamic, Keyed, ownership de effects, scope suspendido, cancelación cooperativa, teardown, latencia, hidratación, islas y estado SSR) pasaron CI en `b18fbbb`: **93 pruebas** + **6 E2E**. E2E Playwright/Chromium: `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, keyed `A,B,C→C,B,A` con foco, título `Contador 0→1`, teardown a cero, teclado, hidratación con texto coalescido y estado `7→8`, islas con contador `3` y toggle `ON`. Click→DOM ~20–30 µs (7–10× vanilla). Terra: 8/8 de la #1; 3/6 de la #2 corregidos y 3 aceptados. ManualOps (Axum + Colibrí) sigue validado. Sin comparativa con otros frameworks ni memoria.
+Actualizado: 2026-11-17. M00-M07 parcial y M09 básico (DOM/WASM, async, lazy, Dynamic, Keyed, contexto, `use_reducer`, refs, ownership de effects, cancelación cooperativa, hidratación, islas y estado SSR) pasaron CI en `b18fbbb`; contexto/reducer/refs están **en local con 98 pruebas + 7 E2E** y pendientes de CI. E2E: contador, async, condicional, keyed con foco, título, teardown a cero, teclado, hidratación con estado `7→8`, islas y tema por contexto con ref de foco. Click→DOM ~20–30 µs (7–10× vanilla). Terra: 8/8 de la #1; 3/6 de la #2 corregidos. ManualOps sigue validado. Sin comparativa con otros frameworks ni memoria.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
 |---|---|---|
-| `colibri-core` | `Signal<T>`, `Scope`; tracking sincrónico, `use_state`, `use_memo` eager, `use_effect`, `use_lazy`, `Resource`, cleanup, `batch`; ciclos recuperables con `take_error()`, `stats()` y `Scope::dispose` (M05) | browser scheduler, tracking async, memo lazy, concurrencia, DOM |
-| `colibri-dom` | runtime DOM/WASM: `View`, `dom!`, `mount`, effects con ownership de componente, eventos, `use_async`/`Resource` con cancelación cooperativa, `Dynamic`, `Keyed`, `hydrate`, islas y `use_hydrated_state` (M07/M09 parcial) | diff/estado por key, hidratación de Dynamic/Keyed, manifiesto/chunking por isla, SFC cliente, Suspense |
+| `colibri-core` | `Signal<T>`, `Scope`, contexto tipado; tracking sincrónico, `use_state`, `use_memo` eager, `use_reducer`, `use_effect`, `use_lazy`, `Resource`, cleanup, `batch`; ciclos recuperables con `take_error()`, `stats()` y `Scope::dispose` (M05) | browser scheduler, tracking async, memo lazy, concurrencia, DOM |
+| `colibri-dom` | runtime DOM/WASM: `View`, `dom!`, `mount`, refs, effects con ownership de componente, eventos, `use_async`/`Resource` con cancelación cooperativa, `Dynamic`, `Keyed`, `hydrate`, islas y `use_hydrated_state` (M07/M09 parcial) | diff/estado por key, hidratación de Dynamic/Keyed, manifiesto/chunking por isla, SFC cliente, Suspense |
 | `colibri-parser` | scanner SFC, AST con spans, atributos e interpolaciones; límites de tamaño/profundidad; lowering estático a IR (M01–M02) | validación integral de expresiones Rust, HTML5 completo, entidades, SCSS |
 | `colibri-ir` | IR con spans: texto, texto dinámico, elementos, fragmentos, atributos y eventos; lowering SFC→IR (M02) | componentes/calls, props, control de flujo, análisis de dependencias, codegen |
 | `colibri-codegen` | SFC → programa Rust con script, expresiones y atributos dinámicos; `build`/`eval` ejecutan con rustc (M06b) | control de flujo, componentes, eventos, SCSS, optimización |
@@ -36,7 +36,7 @@ Actualizado: 2026-11-17. M00-M07 parcial y M09 básico (DOM/WASM, async, lazy, D
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | CI `b18fbbb`: 93 pruebas, 0 fallos. Local: 93 |
+| `cargo test --workspace` | Local: 98 pruebas, 0 fallos. CI `b18fbbb`: 93 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
@@ -82,11 +82,26 @@ Dashboard de manuales internos con Axum + componentes Colibrí, sin JavaScript:
 
 ## Avance M07 — runtime DOM/WASM
 
-`colibri-dom` (wasm32) monta un `View`, actualiza bindings con effects y registra eventos. Los effects de un componente `-> View` los posee el montaje: `#[component]` los captura con `with_effect_scope` y `View::Scoped` los libera al desmontar. `Dynamic` reconstruye condicionales; `Keyed` reordena preservando nodos/foco. `use_async` añade `Resource<T>`; `use_lazy` cachea un cálculo. `hydrate` adopta HTML SSR estático conservando los nodos; `hydrate_island` activa widgets independientes por selector; `use_hydrated_state` conserva el estado sembrado por `colibri_ssr::state_script`. El demo usa `use_state`, `use_memo`, `use_async`, `Dynamic`, `Keyed`, `TitleEffect`, `Panel` y eventos; E2E CI verifica contador, async, condicional `1→0→1`, keyed `A,B,C→C,B,A`, foco y título `Contador 0→1`. Ver [ADR 0011](adr/0011-dom-runtime-mvp.md), [0012](adr/0012-async-resource-lazy.md), [0013](adr/0013-dynamic-fragments.md), [0014](adr/0014-keyed-views.md), [0015](adr/0015-component-effect-ownership.md), [0016](adr/0016-hydration.md), [0017](adr/0017-islands.md), [0018](adr/0018-hydration-state.md) y [revisiones Terra](reviews/2026-11-17-terra.md) ([#2](reviews/2026-11-17-terra-2.md)).
+`colibri-dom` (wasm32) monta un `View`, actualiza bindings con effects y registra eventos. Los effects de un componente `-> View` los posee el montaje: `#[component]` los captura con `with_effect_scope` y `View::Scoped` los libera al desmontar. `Dynamic` reconstruye condicionales; `Keyed` reordena preservando nodos/foco. `use_async` añade `Resource<T>`; `use_lazy` cachea un cálculo. `provide_context`/`use_context` dan contexto con scope por componente; `use_reducer` añade estado con acciones; `ref={...}` recibe el nodo al montar. `hydrate` adopta HTML SSR estático conservando los nodos; `hydrate_island` activa widgets independientes por selector; `use_hydrated_state` conserva el estado sembrado por `colibri_ssr::state_script`. El demo usa `use_reducer`, contexto de tema, un ref de foco, `use_memo`, `use_async`, `Dynamic`, `Keyed`, `TitleEffect`, `Panel` y eventos; E2E CI verifica contador, async, condicional `1→0→1`, keyed `A,B,C→C,B,A`, foco y título `Contador 0→1`. Ver [ADR 0011](adr/0011-dom-runtime-mvp.md), [0012](adr/0012-async-resource-lazy.md), [0013](adr/0013-dynamic-fragments.md), [0014](adr/0014-keyed-views.md), [0015](adr/0015-component-effect-ownership.md), [0016](adr/0016-hydration.md), [0017](adr/0017-islands.md), [0018](adr/0018-hydration-state.md), [0019](adr/0019-context-reducer-refs.md) y [revisiones Terra](reviews/2026-11-17-terra.md) ([#2](reviews/2026-11-17-terra-2.md)).
 
 Pendiente: contenido/estado por key, aborto real de futures (hoy cancelación cooperativa), SFC cliente, hidratación de `Dynamic`/`Keyed`, serialización automática de estado y tipos anidados, manifiesto/chunking por isla, Suspense/streaming y comparativa de rendimiento con otros frameworks.
 
 Teardown: 25 ciclos `mount_app`/`unmount_app` dejan `stats()` en `{signals:0, subscriptions:0, observers:0, queued:0}` y `#app` vacío. Teclado: Enter/Space activan, `Shift+Tab` mueve el foco. Click→DOM: ~20–30 µs por click (7–10× el baseline JS) en la máquina de desarrollo; datos y límites en [benchmarks](benchmarks.md).
+
+## Paridad React (estado)
+
+| Primitiva | Estado |
+|---|---|
+| Componentes, props tipadas, children/Fragment | Sí |
+| `use_state`, `use_memo`, `use_effect`, `use_lazy` | Sí |
+| `use_reducer` | Sí |
+| `provide_context` / `use_context` | Sí (provider imperativo con scope) |
+| Refs callback (`ref={...}`) | Sí (DOM, tras el montaje) |
+| Listas con `key` | Reordenar sí; sin diff de contenido por key |
+| Async (`use_async`/`Resource`) | Sí; sin Suspense |
+| SSR + hidratación + estado | Sí (primitivos planos) |
+| Islas | Sí; sin manifiesto/chunking |
+| Router, portals, Suspense, error boundaries, SFC cliente | No |
 
 ### Entrega entre agentes
 

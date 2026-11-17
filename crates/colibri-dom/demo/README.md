@@ -1,6 +1,6 @@
 # Demo: contador WASM
 
-Componente `Panel` con children, `use_state`, `use_memo`, `use_async`, `Dynamic`, `Keyed` y `on:click`.
+Componente `Panel` con children, `use_reducer`, `use_memo`, `use_async`, `Dynamic`, `Keyed`, contexto de tema, ref de foco y `on:click`.
 
 La página expone `window.colibri` con `mount_app`, `unmount_app` y `stats_json` para probar teardown y contadores del runtime desde Playwright.
 
@@ -32,6 +32,8 @@ Abre <http://127.0.0.1:3211/>. Click en `+1`:
 - keyed: `A,B,C → C,B,A` conservando el nodo y el foco de `B`
 - teardown: 25 ciclos mount/unmount dejan `stats()` en cero y `#app` vacío
 - teclado: Enter/Space activan, `Shift+Tab` mueve el foco
+- ref: el buscador recibe foco al montar
+- tema: contexto `light ↔ dark` con etiqueta que cambia
 - hidratación: `/hydrate.html` adopta el HTML SSR y conserva los nodos; el estado `7` del script se mantiene y pasa a `8`
 - islas: `/islands.html` hidrata dos widgets independientes (`3` y `ON` desde el estado SSR) y los desmonta sin afectarse
 - sin errores de consola ni wrappers `div`.

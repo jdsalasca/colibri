@@ -1,11 +1,15 @@
 //! WASM counter: `cargo build --target wasm32-unknown-unknown --example counter --release`.
 #[cfg(target_arch = "wasm32")]
 mod wasm {
-    use colibri_core::{use_effect, use_memo, use_state, Resource, Signal};
+    use colibri_core::{
+        provide_context, use_context, use_effect, use_memo, use_reducer, use_state, Resource,
+        Signal,
+    };
     use colibri_dom::{hydrate_island, mount, use_async, use_hydrated_state, KeyedView, View};
     use colibri_macros::{component, dom};
     use gloo_timers::future::TimeoutFuture;
     use wasm_bindgen::prelude::*;
+    use wasm_bindgen::JsCast;
 
     #[component]
     pub fn Panel(title: String, children: Vec<View>) -> View {
@@ -88,6 +92,70 @@ mod wasm {
         drop(old);
     }
 
+    #[derive(Clone, Copy, PartialEq)]
+    enum Theme {
+        Light,
+        Dark,
+    }
+
+    #[component]
+    pub fn ThemeBadge() -> View {
+        let theme = use_context::<Theme>().unwrap_or(Theme::Light);
+        let label = match theme {
+            Theme::Light => "tema claro",
+            Theme::Dark => "tema oscuro",
+        };
+        dom! { <span class="theme-label">{label.to_string()}</span> }
+    }
+
+    #[component]
+    pub fn ThemePanel() -> View {
+        let theme = use_state(Theme::Light);
+        let toggle = theme.clone();
+        let render = {
+            let theme = theme.clone();
+            move || {
+                let current = theme.get();
+                provide_context(current);
+                let toggle = toggle.clone();
+                let class = match current {
+                    Theme::Light => "theme-panel light",
+                    Theme::Dark => "theme-panel dark",
+                };
+                vec![dom! {
+                    <div class={class}>
+                        <ThemeBadge/>
+                        <button
+                            type="button"
+                            class="theme-toggle"
+                            on:click={move |_event| toggle.update(|value| {
+                                *value = if *value == Theme::Dark { Theme::Light } else { Theme::Dark };
+                            })}
+                        >
+                            "cambiar tema"
+                        </button>
+                    </div>
+                }]
+            }
+        };
+        dom! { <Dynamic nodes={render}/> }
+    }
+
+    #[component]
+    pub fn SearchFocus() -> View {
+        dom! {
+            <input
+                class="search"
+                type="search"
+                placeholder="Buscar manual…"
+                ref={move |element| {
+                    let input: &web_sys::HtmlElement = element.unchecked_ref();
+                    let _ = input.focus();
+                }}
+            />
+        }
+    }
+
     #[wasm_bindgen(start)]
     pub fn start() -> Result<(), JsValue> {
         if web_sys::window()
@@ -151,13 +219,18 @@ mod wasm {
         )
     }
 
+    #[derive(Clone, Copy)]
+    enum CounterAction {
+        Increment,
+    }
+
     fn app() -> View {
-        let count = use_state(0_i32);
-        let count_text = count.clone();
-        let count_click = count.clone();
+        let counter = use_reducer(0_i32, |value: &i32, _: CounterAction| value + 1);
+        let counter_text = counter.clone();
+        let counter_click = counter.clone();
         let doubled = use_memo({
-            let count = count.clone();
-            move || count.get() * 2
+            let counter = counter.clone();
+            move || counter.get() * 2
         });
         let manuals = use_async(async {
             TimeoutFuture::new(500).await;
@@ -199,10 +272,11 @@ mod wasm {
 
         let view = dom! {
             <main class="counter">
-                <TitleEffect count={count.clone()}/>
+                <TitleEffect count={counter.signal().clone()}/>
+                <SearchFocus/>
                 <Panel title="Contador reactivo">
                     <p class="eyebrow">"COLIBRÍ · WASM"</p>
-                    <p class="value">{count_text.get()}</p>
+                    <p class="value">{counter_text.get()}</p>
                     <p class="double">"doble: " {doubled.get()}</p>
                     <p class="async">{match manuals_text.get() {
                         Resource::Loading => String::from("cargando catálogo…"),
@@ -217,10 +291,11 @@ mod wasm {
                     <button type="button" class="reorder" on:click={move |_event| reorder.update(|v| v.reverse())}>
                         "reordenar"
                     </button>
-                    <button type="button" class="increment" on:click={move |_event| count_click.update(|n| *n += 1)}>
+                    <button type="button" class="increment" on:click={move |_event| counter_click.dispatch(CounterAction::Increment)}>
                         "+1"
                     </button>
                 </Panel>
+                <ThemePanel/>
             </main>
         };
         view
