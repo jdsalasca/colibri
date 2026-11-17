@@ -93,7 +93,8 @@ test('hydrates server-rendered DOM without losing nodes', async ({ page }) => {
   page.on('pageerror', (error) => errors.push(error.message));
 
   await page.goto('/hydrate.html');
-  await expect(page.locator('#hydrated p.label')).toHaveText('contador: 0');
+  await expect(page.locator('#hydrated p.label')).toHaveText('contador: 7');
+  await expect(page.locator('#hydrated p.value')).toHaveText('7');
   await page.evaluate(() => {
     const section = document.querySelector<HTMLElement>('#hydrated section');
     const label = document.querySelector<HTMLElement>('#hydrated p.label');
@@ -102,8 +103,8 @@ test('hydrates server-rendered DOM without losing nodes', async ({ page }) => {
   });
 
   await page.locator('#hydrated button.increment').click();
-  await expect(page.locator('#hydrated p.value')).toHaveText('1');
-  await expect(page.locator('#hydrated p.label')).toHaveText('contador: 1');
+  await expect(page.locator('#hydrated p.value')).toHaveText('8');
+  await expect(page.locator('#hydrated p.label')).toHaveText('contador: 8');
   await expect(page.locator('#hydrated p.label')).toHaveAttribute('data-marker', 'ssr');
   await expect(page.locator('#hydrated section')).toHaveAttribute('data-section', 'ssr');
   await expect(page.locator('#hydrated > *')).toHaveCount(1);
@@ -118,7 +119,7 @@ test('hydrates independent islands on a server-rendered page', async ({ page }) 
   page.on('pageerror', (error) => errors.push(error.message));
 
   await page.goto('/islands.html');
-  await expect(page.locator('#island-counter p.value')).toHaveText('0');
+  await expect(page.locator('#island-counter p.value')).toHaveText('3');
   await page.evaluate(() => {
     const counter = document.querySelector<HTMLElement>('#island-counter section');
     const toggle = document.querySelector<HTMLElement>('#island-toggle button');
@@ -127,14 +128,14 @@ test('hydrates independent islands on a server-rendered page', async ({ page }) 
   });
 
   await page.locator('#island-counter button.increment').click();
-  await expect(page.locator('#island-counter p.value')).toHaveText('1');
-  await expect(page.locator('#island-counter p.label')).toHaveText('contador: 1');
+  await expect(page.locator('#island-counter p.value')).toHaveText('4');
+  await expect(page.locator('#island-counter p.label')).toHaveText('contador: 4');
 
   const toggle = page.locator('#island-toggle button.toggle-island');
-  await expect(toggle).toHaveText('OFF');
-  await toggle.click();
   await expect(toggle).toHaveText('ON');
-  await expect(toggle).toHaveClass(/on/);
+  await toggle.click();
+  await expect(toggle).toHaveText('OFF');
+  await expect(toggle).toHaveClass(/off/);
 
   await expect(page.locator('#island-counter section')).toHaveAttribute('data-island', 'counter');
   await expect(page.locator('#island-toggle button')).toHaveAttribute('data-island', 'toggle');

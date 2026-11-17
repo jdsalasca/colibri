@@ -8,6 +8,7 @@ colibri-core = { path = "../colibri-core" }
 colibri-ssr = { path = "../colibri-ssr" }
 wasm-bindgen = "=0.2.130"
 wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
 web-sys = { version = "=0.3.107", features = ["Comment", "Document", "Element", "Event", "EventTarget", "HtmlElement", "Node", "NodeList", "Text", "Window", "console"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]

@@ -357,9 +357,65 @@ where
     Ok(result)
 }
 
+/// Error returned when the hydration state script cannot be built.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StateScriptError {
+    /// Human-readable reason.
+    pub message: &'static str,
+}
+
+impl std::fmt::Display for StateScriptError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.message)
+    }
+}
+
+impl std::error::Error for StateScriptError {}
+
+/// Render the JSON state that `colibri_dom::use_hydrated_state` reads.
+///
+/// `json` must already be a JSON object string (for example from `serde_json`).
+/// The id is restricted to ASCII letters, digits, `-` and `_`, and `</` is
+/// escaped so the payload cannot close the script element.
+pub fn state_script(id: &str, json: &str) -> Result<String, StateScriptError> {
+    let valid_id = !id.is_empty()
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_');
+    if !valid_id {
+        return Err(StateScriptError {
+            message: "state script id must be ASCII letters, digits, '-' or '_'",
+        });
+    }
+    let escaped = json.replace("</", "<\\/");
+    Ok(format!(
+        "<script type=\"application/json\" id=\"{id}\">{escaped}</script>"
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn renders_state_script_and_escapes_script_end() {
+        let html = state_script("colibri-state", r#"{"a":"</script><img>"}"#).unwrap();
+        assert!(html.starts_with("<script type=\"application/json\" id=\"colibri-state\">"));
+        assert!(html.contains("<\\/script>"));
+        assert!(!html.contains("</script><img>"));
+        assert!(html.ends_with("</script>"));
+    }
+
+    #[test]
+    fn rejects_unsafe_state_script_id() {
+        assert_eq!(
+            state_script("x\" onload=\"", "{}").unwrap_err(),
+            StateScriptError {
+                message: "state script id must be ASCII letters, digits, '-' or '_'"
+            }
+        );
+        assert!(state_script("", "{}").is_err());
+    }
 
     fn span(start: usize, end: usize) -> SourceSpan {
         SourceSpan {

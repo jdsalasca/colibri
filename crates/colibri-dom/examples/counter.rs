@@ -2,7 +2,7 @@
 #[cfg(target_arch = "wasm32")]
 mod wasm {
     use colibri_core::{use_effect, use_memo, use_state, Resource, Signal};
-    use colibri_dom::{mount, use_async, KeyedView, View};
+    use colibri_dom::{hydrate_island, mount, use_async, use_hydrated_state, KeyedView, View};
     use colibri_macros::{component, dom};
     use gloo_timers::future::TimeoutFuture;
     use wasm_bindgen::prelude::*;
@@ -32,7 +32,7 @@ mod wasm {
 
     #[component]
     pub fn HydratedCounter() -> View {
-        let count = use_state(0_i32);
+        let count = use_hydrated_state("counter", 0_i32);
         let value = count.clone();
         let label = count.clone();
         let click = count.clone();
@@ -49,7 +49,7 @@ mod wasm {
 
     #[component]
     pub fn HydratedToggle() -> View {
-        let on = use_state(false);
+        let on = use_hydrated_state("toggle", false);
         let label = on.clone();
         let class = on.clone();
         let click = on.clone();
@@ -67,12 +67,12 @@ mod wasm {
     #[wasm_bindgen]
     pub fn hydrate_islands_demo() -> Result<(), JsValue> {
         let mut handles = Vec::new();
-        if let Some(handle) = colibri_dom::hydrate_island("#island-counter", || {
+        if let Some(handle) = hydrate_island("#island-counter", || {
             dom! { <HydratedCounter/> }
         })? {
             handles.push(handle);
         }
-        if let Some(handle) = colibri_dom::hydrate_island("#island-toggle", || {
+        if let Some(handle) = hydrate_island("#island-toggle", || {
             dom! { <HydratedToggle/> }
         })? {
             handles.push(handle);

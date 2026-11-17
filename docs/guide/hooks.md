@@ -76,6 +76,24 @@ pub fn TitleEffect(count: Signal<i32>) -> View {
 
 Límite: la detección es sintáctica. Si el retorno es un alias o wrapper de `View`, conserva el handle o anota el retorno como `View`. Ver [ADR 0015](../adr/0015-component-effect-ownership.md). No llames hooks (`use_async`, `use_effect`) dentro del callback de otro effect: van en el cuerpo del componente.
 
+### Estado SSR
+
+Para que la hidratación no reinicie el estado, el servidor emite un script JSON y el cliente lo lee con `use_hydrated_state`:
+
+```rust
+// servidor (Axum u otro): el JSON lo produce tu app
+let script = colibri_ssr::state_script("colibri-state", &json)?;
+// <script type="application/json" id="colibri-state">{"counter":7}</script>
+
+// cliente
+let count = colibri_dom::use_hydrated_state("counter", 0_i32);
+```
+
+- Tipos soportados: `i32`, `f64`, `bool`, `String`.
+- Clave ausente o tipo distinto: usa el valor inicial y lo reporta por consola.
+- El script se lee una vez y es público: nunca pongas secretos.
+- Ver [ADR 0018](../adr/0018-hydration-state.md).
+
 ## Hidratación
 
 `colibri_dom::hydrate(view, container)` adopta el HTML servido por SSR en vez de reconstruirlo:
@@ -133,7 +151,7 @@ match manuals.get() {
 
 - **Reconciliación keyed**: `<Keyed>` conserva identidad/foco al reordenar, pero no re-renderiza el contenido de una key existente; falta diff/estado por key.
 - **SFC cliente**: `dom!` es la ruta Rust; `.colibri` aún no compila a WASM.
-- **Hidratación de `Dynamic`/`Keyed`** y serialización de estado SSR → cliente (la hidratación básica ya adopta HTML estático).
+- **Hidratación de `Dynamic`/`Keyed`** y serialización automática de estado (la siembra explícita ya existe; solo primitivos planos).
 - **Suspense/streaming**: `Resource` no suspende el render ni hace streaming.
 - **Aborto real de futures** (la cancelación es cooperativa) y code splitting/lazy components.
 - **Scope de terceros**: sólo los componentes `-> View` reciben effects con ownership automático; SSR descarta los efectos.

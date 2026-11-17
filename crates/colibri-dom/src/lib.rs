@@ -8,6 +8,8 @@
 mod browser;
 #[cfg(target_arch = "wasm32")]
 mod resource;
+#[cfg(target_arch = "wasm32")]
+mod state;
 
 #[cfg(target_arch = "wasm32")]
 pub use browser::{
@@ -16,3 +18,5 @@ pub use browser::{
 };
 #[cfg(target_arch = "wasm32")]
 pub use resource::use_async;
+#[cfg(target_arch = "wasm32")]
+pub use state::{use_hydrated_state, Seed, STATE_ID};

@@ -8,7 +8,8 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="hydrated"><section class="hydrated"><p class="label">contador: 0</p><p class="value">0</p><button type="button" class="increment">+1</button></section></div>
+  <div id="hydrated"><section class="hydrated"><p class="label">contador: 7</p><p class="value">7</p><button type="button" class="increment">+1</button></section></div>
+  <script type="application/json" id="colibri-state">{"counter":7}</script>
   <script type="module">
     import init, { hydrate_demo } from './pkg/counter.js';
     await init();

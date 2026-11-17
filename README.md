@@ -21,7 +21,7 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 | Paquete | Estado | Función |
 |---|---|---|
 | `colibri-core` | Prototipo | Signals, scopes y motor con `use_state`, `use_memo`, `use_effect`, `use_lazy`, `Resource`, `batch`, ciclos recuperables (`take_error`), `stats()` y `Scope::dispose` |
-| `colibri-dom` | Prototipo | Runtime DOM/WASM: `View`, `dom!`, `mount`, `hydrate`, `hydrate_island`, effects con ownership de componente, eventos, `use_async`/`Resource` con cancelación cooperativa, `Dynamic` y `Keyed` (M07/M09 parcial) |
+| `colibri-dom` | Prototipo | Runtime DOM/WASM: `View`, `dom!`, `mount`, `hydrate`, `hydrate_island`, `use_hydrated_state`, effects con ownership de componente, eventos, `use_async`/`Resource` con cancelación cooperativa, `Dynamic` y `Keyed` (M07/M09 parcial) |
 | `colibri-parser` | Prototipo | Scanner SFC y AST de template con spans (M01); no compila |
 | `colibri-ir` | Prototipo | IR semántica con spans y lowering SFC→IR (M02) |
 | `colibri-codegen` | Prototipo | SFC → programa Rust; `build`/`eval` con rustc real (M06b) |
@@ -85,7 +85,7 @@ pub fn Counter() -> View {
 }
 ```
 
-Build y demo: [`colibri-dom/demo`](crates/colibri-dom/demo/README.md). `dom!` acepta eventos y actualiza bindings sin reconstruir el árbol. `use_async` devuelve `Signal<Resource<T>>`, `use_lazy` cachea un cálculo, `Dynamic` reconstruye condicionales, `Keyed` reordena preservando identidad y foco, `hydrate` adopta HTML SSR estático y `hydrate_island` activa islas independientes.
+Build y demo: [`colibri-dom/demo`](crates/colibri-dom/demo/README.md). `dom!` acepta eventos y actualiza bindings sin reconstruir el árbol. `use_async` devuelve `Signal<Resource<T>>`, `use_lazy` cachea un cálculo, `Dynamic` reconstruye condicionales, `Keyed` reordena preservando identidad y foco, `hydrate` adopta HTML SSR estático, `hydrate_island` activa islas y `use_hydrated_state` conserva el estado sembrado con `colibri_ssr::state_script`.
 
 ## Primeros pasos
 

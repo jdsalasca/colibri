@@ -32,6 +32,7 @@ Implementado en `colibri-dom` (wasm32):
 - `mount(view, container)`: DOM una vez, bindings con `use_effect`, eventos con `Closure`.
 - `MountHandle`: cleanup de listeners/effects/nodos.
 - `hydrate(view, container)`: adopta HTML SSR estático (ver [ADR 0016](../adr/0016-hydration.md)); E2E en `/hydrate.html`.
+- `use_hydrated_state(key, initial)` + `colibri_ssr::state_script`: conserva el estado SSR en la hidratación ([ADR 0018](../adr/0018-hydration-state.md)).
 - `#[component]` funciona con retorno `View`; children vía `<Fragment nodes={children}/>`.
 - Demo `crates/colibri-dom/demo`: `Panel` + `use_state` + `use_memo` + `on:click`; Chrome: 0→1, doble 0→2, sin errores.
 
