@@ -6,12 +6,12 @@
 Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust-first*, orientado a construir aplicaciones accesibles para equipos de recursos limitados. Su objetivo es minimizar trabajo computacional, memoria adicional, latencia y bytes enviados al navegador **sin sacrificar accesibilidad ni experiencia de desarrollo**.
 
 > **Estado: fundación experimental (v0.0.1). No es aún un framework de producción.**
-> Este repositorio contiene prototipos comprobables de un núcleo de señales, parser SFC, representación intermedia y renderizado HTML estático. Aún **no** compila componentes `.colibri` a WASM ni implementa `#[component]`, `view!`, reactividad automática, Vite/HMR, hidratación o enrutamiento.
+> El subconjunto estático ya se renderiza a HTML desde `.colibri` y desde la macro `view!`. Aún **no** hay compilación a WASM, `#[component]`, reactividad, Vite/HMR, hidratación ni enrutamiento.
 
 ## La idea: dos sintaxis, un solo motor
 
-- **Rust puro:** componentes `.rs` con macros `#[component]` y `view!` (API objetivo, no implementada).
-- **Colibrí SFC:** archivos `.colibri` con `<script lang="rust">`, `<template>` y `<style scoped lang="scss">` (parser inicial implementado; compilación pendiente).
+- **Rust puro:** `view!` estático implementado; `#[component]`, props y eventos son API objetivo.
+- **Colibrí SFC:** archivos `.colibri` con `<script lang="rust">`, `<template>` y `<style scoped lang="scss">` (parser y render estático implementados; compilación pendiente).
 - **Un IR compartido** para representar componentes; el objetivo es que ambas sintaxis generen el mismo comportamiento y coste de ejecución.
 - **HTML/CSS primero:** las páginas que no requieren interactividad no deberían descargar un runtime cliente.
 - **WASM selectivo, no dogmático:** JavaScript mínimo cuando sea la opción de mejor rendimiento.
@@ -23,8 +23,23 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 | `colibri-core` | Prototipo | `Signal<T>`, suscripciones y limpieza por `Scope` (notificación síncrona; sin seguimiento automático) |
 | `colibri-parser` | Prototipo | Scanner SFC y AST de template con spans (M01); no compila |
 | `colibri-ir` | Prototipo | IR semántica con spans y lowering SFC→IR (M02) |
+| `colibri-macros` | Prototipo | `view!` estático a IR; dinámico/eventos fallan en compilación (M03) |
 | `colibri-ssr` | Prototipo | Render HTML estático seguro con errores por span (M02) |
 | `colibri-cli` | Prototipo | `check` estructural y `render` HTML estático |
+
+## Dos sintaxis, el mismo IR
+
+```rust
+use colibri_macros::view;
+
+let node = view! { <article class="card"><h1>"Título"</h1></article> };
+```
+
+```html
+<template><article class="card"><h1>Título</h1></article></template>
+```
+
+Ambas rutas producen el mismo IR normalizado y el mismo HTML estático; la suite de paridad lo verifica en cada ejecución de tests.
 
 ## Primeros pasos
 
@@ -46,6 +61,7 @@ cargo run -p colibri-cli -- render examples/static-card.colibri
 crates/
   colibri-core/       Estado, suscripciones, ownership básico
   colibri-ir/         Modelo de representación de componentes
+  colibri-macros/     Macro proc `view!` para la ruta Rust
   colibri-parser/     Lectura de componentes de archivo único
   colibri-ssr/        Renderizador seguro de HTML estático
   colibri-cli/        Utilidades para el desarrollador
@@ -58,6 +74,7 @@ docs/
   publishing.md
   adr/
 examples/
+  static-card.colibri   SFC estático que renderiza hoy
   counter.colibri       Ejemplo de sintaxis propuesta (no ejecutable)
 precedentes/
   README.md, frameworks.tsv, fetch.sh, notes/
