@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliación coarse) pasaron CI en `4c6c1ec`: **84 pruebas**, build WASM y demo Chrome (`0→1`, doble `0→2`, async `42`, condicional `1→0→1`, sin errores). Terra revisó el framework y se aplicaron 5 de 8 hallazgos. ManualOps (Axum + Colibrí) sigue validado. No se ha probado rendimiento ni hidratación SSR.
+Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliación con anclas) pasaron CI en `bd8311a`: **84 pruebas**, build WASM y **E2E Playwright/Chromium** (`0→1`, doble `0→2`, async `42`, condicional `1→0→1`, sin wrappers ni errores). Terra revisó el framework: 6 de 8 hallazgos aplicados. ManualOps (Axum + Colibrí) sigue validado. No se ha probado rendimiento ni hidratación SSR.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
@@ -36,7 +36,7 @@ Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliaci
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | CI `4c6c1ec`: 84 pruebas, 0 fallos. Local: 84 |
+| `cargo test --workspace` | CI `bd8311a`: 84 pruebas, 0 fallos. Local: 84 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
@@ -44,12 +44,13 @@ Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliaci
 | `cargo test -p colibri-ssr` | 12 pruebas: escape, URL allowlist, dinámicos, meta/link seguros y rechazos |
 | `cargo test -p colibri-macros` | Componentes, props tipadas, composición, children y `Option`/null safety (M03b) |
 | Build WASM + wasm-bindgen | CI `f2ff960` compila `wasm32-unknown-unknown`; demo local con wasm-bindgen |
-| Chrome/Playwright | Contador `0→1`, doble `0→2`, async `42 manuales`, condicional `1→0→1`; sin errores; `counter.png` |
+| Chrome/Playwright | Contador `0→1`, doble `0→2`, async `42 manuales`, condicional `1→0→1`; sin wrappers ni errores; `counter.png` |
+| E2E en CI | Job `e2e` con wasm-bindgen + Playwright/Chromium; pasa en `bd8311a` |
 | Seguridad DOM/SSR | `validate_attribute` compartido; allowlist `http/https/mailto/tel/relativas`; pruebas de `ftp`/`data`/`file`/`javascript` |
-| Revisión Terra | 8 hallazgos; 5 aplicados, 3 diferidos en [review](reviews/2026-11-17-terra.md) |
+| Revisión Terra | 8 hallazgos; 6 aplicados, 2 diferidos en [review](reviews/2026-11-17-terra.md) |
 | Audit portátil de `teachers` | fmt + clippy + README + `expect` limpios; quedan 4 archivos >400 líneas (deuda documentada en [quality](quality.md)) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
-| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `4c6c1ec`: [run 44103706139](https://github.com/jdsalasca/colibri/actions/runs/44103706139) / [run 44103706093](https://github.com/jdsalasca/colibri/actions/runs/44103706093) (validate + wasm) |
+| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `bd8311a`: [run 44110664135](https://github.com/jdsalasca/colibri/actions/runs/44110664135) / [run 44110663865](https://github.com/jdsalasca/colibri/actions/runs/44110663865) (validate + wasm + e2e) |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |
 
@@ -81,9 +82,9 @@ Dashboard de manuales internos con Axum + componentes Colibrí, sin JavaScript:
 
 ## Avance M07 — runtime DOM/WASM
 
-`colibri-dom` (wasm32) monta un `View` en el DOM, actualiza texto/atributos con effects y registra eventos con `Closure`. `#[component]` funciona con retorno `View` y children vía `Fragment`. `use_async` añade `Resource<T>`; `use_lazy` cachea un cálculo; `<Dynamic nodes={closure}/>` reconstruye listas/condicionales de forma transaccional. El demo usa `use_state`, `use_memo`, `use_async`, `Dynamic`, un componente `Panel` y `on:click`; en Chrome: `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, sin errores. Ver [ADR 0011](adr/0011-dom-runtime-mvp.md), [0012](adr/0012-async-resource-lazy.md), [0013](adr/0013-dynamic-fragments.md) y [revisión Terra](reviews/2026-11-17-terra.md).
+`colibri-dom` (wasm32) monta un `View` en el DOM, actualiza texto/atributos con effects y registra eventos con `Closure`. `#[component]` funciona con retorno `View` y children vía `Fragment`. `use_async` añade `Resource<T>`; `use_lazy` cachea un cálculo; `<Dynamic nodes={closure}/>` reconstruye listas/condicionales con comentarios ancla y reemplazo transaccional. El demo usa `use_state`, `use_memo`, `use_async`, `Dynamic`, un componente `Panel` y `on:click`; E2E de CI verifica `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, sin wrappers ni errores. Ver [ADR 0011](adr/0011-dom-runtime-mvp.md), [0012](adr/0012-async-resource-lazy.md), [0013](adr/0013-dynamic-fragments.md) y [revisión Terra](reviews/2026-11-17-terra.md).
 
-Pendiente: reconciliación keyed, ownership de effects por componente, cancelación de futures, SFC cliente, hidratación, Suspense/streaming, E2E en CI y medición JS↔WASM.
+Pendiente: reconciliación keyed con foco/identidad, ownership de effects por componente, cancelación de futures, SFC cliente, hidratación, Suspense/streaming y medición JS↔WASM.
 
 ### Entrega entre agentes
 
