@@ -10,10 +10,11 @@ Estado: **Aceptada** como primera reconciliación estructural.
 
 1. `View::DynamicFragment(Rc<dyn Fn() -> Vec<View>>)`.
 2. `dom!` acepta `<Dynamic nodes={closure}/>`; la closure devuelve `Vec<View>`.
-3. En montaje se crea un wrapper persistente `<div style="display: contents">`. En cada cambio:
-   - se monta la nueva lista en un wrapper interno nuevo,
-   - si el montaje tiene éxito, se desmonta el anterior y se retira su wrapper,
-   - si falla, se retira el nuevo, se conserva el anterior y se reporta por `console.error`.
+3. En montaje se crean dos comentarios ancla (`colibri:start`/`colibri:end`). En cada cambio:
+   - se monta la nueva lista en un contenedor temporal **detached**,
+   - si el montaje tiene éxito, se desmonta el anterior y se mueven los nuevos nodos antes del ancla `end`,
+   - el handle adopta el padre real para el cleanup,
+   - si falla, se conserva el anterior y se reporta por `console.error`.
 4. `Fragment` y `Dynamic` rechazan `nodes` duplicado con span del segundo atributo.
 5. `view!`/SSR rechaza `Dynamic`: no hay evaluación de closures en servidor en esta fase.
 
@@ -25,7 +26,7 @@ Estado: **Aceptada** como primera reconciliación estructural.
 ## Consecuencias
 - Condicionales y listas ya cambian en cliente.
 - La reconciliación es **coarse**: reconstruye el subárbol; no preserva foco, estado local ni identidad keyed.
-- El wrapper `<div>` con `display: contents` puede afectar tablas, `<select>`, selectores y accesibilidad; es deuda conocida.
+- No hay wrapper `<div>`: se usan comentarios ancla, así que tablas, listas y `<select>` conservan su estructura.
 - No hay hidratación SSR→cliente ni SFC cliente.
 - Los errores de montaje dinámico se reportan por consola; no hay canal de error de aplicación todavía.
 

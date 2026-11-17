@@ -47,12 +47,16 @@ fn collect_rlibs(directory: &Path, crate_name: &str, found: &mut Vec<PathBuf>) {
 
 fn find_rlib(crate_name: &str) -> PathBuf {
     let mut candidates = Vec::new();
-    collect_rlibs(&workspace_target(), crate_name, &mut candidates);
+    collect_rlibs(
+        &workspace_target().join("debug"),
+        crate_name,
+        &mut candidates,
+    );
     candidates.sort_by_key(|path| fs::metadata(path).and_then(|meta| meta.modified()).ok());
     candidates.pop().unwrap_or_else(|| {
         panic!(
-            "missing rlib for {crate_name} under {}",
-            workspace_target().display()
+            "missing host rlib for {crate_name} under {}",
+            workspace_target().join("debug").display()
         )
     })
 }

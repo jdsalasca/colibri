@@ -6,7 +6,7 @@ Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliaci
 | Módulo | Implementado (limitado) | NO implementado |
 |---|---|---|
 | `colibri-core` | `Signal<T>`, `Scope`; tracking sincrónico, `use_state`, `use_memo` eager, `use_effect`, `use_lazy`, `Resource`, cleanup, `batch`; ciclos recuperables con `take_error()`, `stats()` y `Scope::dispose` (M05) | browser scheduler, tracking async, memo lazy, concurrencia, DOM |
-| `colibri-dom` | runtime DOM/WASM: `View`, `dom!`, `mount`, bindings con effects, eventos, `use_async`/`Resource`, `Dynamic` coarse y cleanup (M07 parcial) | reconciliación keyed, SFC cliente, hidratación, Suspense |
+| `colibri-dom` | runtime DOM/WASM: `View`, `dom!`, `mount`, bindings con effects, eventos, `use_async`/`Resource`, `Dynamic` con anclas y cleanup (M07 parcial) | reconciliación keyed, SFC cliente, hidratación, Suspense |
 | `colibri-parser` | scanner SFC, AST con spans, atributos e interpolaciones; límites de tamaño/profundidad; lowering estático a IR (M01–M02) | validación integral de expresiones Rust, HTML5 completo, entidades, SCSS |
 | `colibri-ir` | IR con spans: texto, texto dinámico, elementos, fragmentos, atributos y eventos; lowering SFC→IR (M02) | componentes/calls, props, control de flujo, análisis de dependencias, codegen |
 | `colibri-codegen` | SFC → programa Rust con script, expresiones y atributos dinámicos; `build`/`eval` ejecutan con rustc (M06b) | control de flujo, componentes, eventos, SCSS, optimización |
@@ -27,7 +27,7 @@ Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliaci
 - No existe todavía evidencia de ventajas respecto a React, Solid, Svelte, Leptos o JS.
 - El pipeline estático no evalúa expresiones ni eventos y no decodifica entidades HTML de entrada (`&amp;` se trata como texto literal). Los comentarios HTML se descartan en lowering.
 - El SSR dinámico tiene dos vías: resolver del host (`render --bind`, [ADR 0007](adr/0007-dynamic-ssr-resolver.md)) y codegen Rust (`build`/`eval`, [ADR 0008](adr/0008-sfc-rust-codegen.md)). La segunda compila el script real con rustc, pero no es sandbox, no admite control de flujo/componentes/eventos/SCSS y los errores de tipo apuntan al Rust generado.
-- El runtime DOM/WASM (`dom!`) actualiza texto/atributos/eventos y `Dynamic` reconstruye listas/condicionales; la reconciliación es coarse (sin keyed/foco/estado local), usa un wrapper `display: contents` y no hay hidratación SSR ([ADR 0011](adr/0011-dom-runtime-mvp.md), [0013](adr/0013-dynamic-fragments.md)).
+- El runtime DOM/WASM (`dom!`) actualiza texto/atributos/eventos y `Dynamic` reconstruye listas/condicionales con anclas; la reconciliación es coarse (sin keyed/foco/estado local) y no hay hidratación SSR ([ADR 0011](adr/0011-dom-runtime-mvp.md), [0013](adr/0013-dynamic-fragments.md)).
 - El audit portátil de `teachers` pasa; el baseline estricto (`missing_docs`, `unwrap_used`, cobertura 60%) sólo se aplica por ahora a `colibri-codegen`. Ver [calidad](quality.md).
 - La ruta Rust usa spans sintéticos (`file!()`, `0..0`) porque los proc macros estables no exponen offsets de byte; los errores de sintaxis sí apuntan al token real.
 

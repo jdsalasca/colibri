@@ -83,6 +83,11 @@ impl MountHandle {
     pub fn unmount(self) {
         drop(self);
     }
+
+    /// Move ownership of the roots to another container after reparenting.
+    pub(crate) fn adopt(&mut self, container: Element) {
+        self.container = container;
+    }
 }
 
 impl Drop for MountHandle {
@@ -136,39 +141,39 @@ impl MountState {
         render: &Rc<dyn Fn() -> Vec<View>>,
         parent: &Element,
     ) -> Result<(), JsValue> {
-        let wrapper = self.document.create_element("div")?;
-        wrapper.set_attribute("data-colibri-dynamic", "")?;
-        wrapper.set_attribute("style", "display: contents")?;
-        parent.append_child(&wrapper)?;
+        let start = self.document.create_comment("colibri:start");
+        let end = self.document.create_comment("colibri:end");
+        let start_node: &Node = start.unchecked_ref();
+        let end_node: &Node = end.unchecked_ref();
+        parent.append_child(start_node)?;
+        parent.append_child(end_node)?;
 
         let render = Rc::clone(render);
-        let container = wrapper.clone();
-        let current: Rc<RefCell<Option<(MountHandle, Element)>>> = Rc::new(RefCell::new(None));
+        let parent = parent.clone();
+        let end_anchor: Node = end.unchecked_ref::<Node>().clone();
+        let current: Rc<RefCell<Option<MountHandle>>> = Rc::new(RefCell::new(None));
         let slot = Rc::clone(&current);
         let effect = use_effect(move || {
-            let Some(document) = container.owner_document() else {
+            let Some(document) = parent.owner_document() else {
                 return;
             };
-            let Ok(next) = document.create_element("div") else {
+            let Ok(temp) = document.create_element("div") else {
                 return;
             };
-            let _ = next.set_attribute("data-colibri-dynamic", "");
-            let _ = next.set_attribute("style", "display: contents");
-            if container.append_child(&next).is_err() {
-                return;
-            }
-            match mount(View::Fragment(render()), next.clone()) {
-                Ok(handle) => {
-                    if let Some((old, old_container)) = slot.borrow_mut().take() {
+            match mount(View::Fragment(render()), temp.clone()) {
+                Ok(mut handle) => {
+                    if let Some(old) = slot.borrow_mut().take() {
                         old.unmount();
-                        let _ = container.remove_child(&old_container);
                     }
-                    *slot.borrow_mut() = Some((handle, next));
+                    while let Some(child) = temp.first_child() {
+                        if parent.insert_before(&child, Some(&end_anchor)).is_err() {
+                            break;
+                        }
+                    }
+                    handle.adopt(parent.clone());
+                    *slot.borrow_mut() = Some(handle);
                 }
-                Err(error) => {
-                    let _ = container.remove_child(&next);
-                    web_sys::console::error_1(&error);
-                }
+                Err(error) => web_sys::console::error_1(&error),
             }
         });
         self.effects.push(effect);

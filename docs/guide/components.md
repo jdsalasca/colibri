@@ -152,7 +152,7 @@ let render = {
 let view = dom! { <div><Dynamic nodes={render}/></div> };
 ```
 
-Es reconciliación **coarse**: reconstruye el subárbol, no preserva foco/estado local y usa un wrapper `display: contents`. Para listas keyed estables hace falta una fase posterior.
+Es reconciliación **coarse**: reconstruye el subárbol, no preserva foco/estado local y usa comentarios ancla (sin wrapper `<div>`). Para listas keyed estables hace falta una fase posterior.
 
 La validación de atributos/URL del DOM comparte política con SSR (`colibri_ssr::validate_attribute`).
 

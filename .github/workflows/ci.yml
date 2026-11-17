@@ -27,3 +27,30 @@ jobs:
           targets: wasm32-unknown-unknown
       - name: Build DOM/WASM demo
         run: cargo build -p colibri-dom --example counter --target wasm32-unknown-unknown --release
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-bindgen
+        run: |
+          curl -LsSf https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.130/wasm-bindgen-0.2.130-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv wasm-bindgen-0.2.130-x86_64-unknown-linux-musl/wasm-bindgen /usr/local/bin/
+      - name: Build demo
+        run: |
+          cargo build -p colibri-dom --example counter --target wasm32-unknown-unknown --release
+          wasm-bindgen --target web --out-dir crates/colibri-dom/demo/pkg target/wasm32-unknown-unknown/release/examples/counter.wasm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        working-directory: crates/colibri-dom/demo
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: E2E
+        working-directory: crates/colibri-dom/demo
+        run: npx playwright test

@@ -3,6 +3,9 @@
 /node_modules/
 /.vite/
 /crates/colibri-dom/demo/pkg/
+/crates/colibri-dom/demo/node_modules/
+/crates/colibri-dom/demo/test-results/
+/crates/colibri-dom/demo/playwright-report/
 /.DS_Store
 /precedentes/upstream/
 *.log

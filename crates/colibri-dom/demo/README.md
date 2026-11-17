@@ -26,7 +26,16 @@ Abre <http://127.0.0.1:3211/>. Click en `+1`:
 - valor: `0 → 1`
 - doble: `0 → 2`
 - async: `cargando catálogo… → 42 manuales listos`
-- sin errores de consola.
+- toggle: condicional `1 → 0 → 1`
+- sin errores de consola ni wrappers `div`.
+
+E2E automatizado:
+
+```sh
+npm ci
+npx playwright install chromium
+npx playwright test
+```
 
 Captura: [counter.png](counter.png).
 
