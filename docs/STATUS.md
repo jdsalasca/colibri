@@ -39,7 +39,7 @@ Actualizado: 2026-11-16. M00–M05 se validaron en CI (`8eb70c2`, 58 pruebas; PR
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
 | `colibri eval examples/greeting.colibri` | Compila el script con rustc y emite HTML con valores calculados (M06b) |
 | `cargo test -p colibri-macros` | Componentes, props tipadas, composición, children y `Option`/null safety (M03b) |
-| Audit portátil de `teachers` | `python tools/lint.py --project ...` limpio (fmt + clippy) |
+| Audit portátil de `teachers` | fmt + clippy + README + `expect` limpios; quedan 4 archivos >400 líneas (deuda documentada en [quality](quality.md)) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
 | CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `8a91853`: [run 43995971781](https://github.com/jdsalasca/colibri/actions/runs/43995971781) / [run 43995971500](https://github.com/jdsalasca/colibri/actions/runs/43995971500) |
 | Browser/WASM | No implementado |

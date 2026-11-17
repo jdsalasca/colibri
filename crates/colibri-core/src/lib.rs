@@ -160,9 +160,8 @@ impl<T: 'static> Signal<T> {
 
     pub fn subscribe(&self, callback: impl Fn() + 'static) -> Subscription<T> {
         let id = self.inner.next_id.get();
-        self.inner
-            .next_id
-            .set(id.checked_add(1).expect("subscriber id exhausted"));
+        // usize::MAX subscriptions are not reachable; saturate instead of panicking.
+        self.inner.next_id.set(id.saturating_add(1));
         subscription_created();
         self.inner
             .watchers

@@ -18,14 +18,23 @@ python tools/lint.py --project "C:\Users\jdsal\Documents\Programming-personal\co
 - Los tests permiten `unwrap`/`expect`/`panic` con un `#![allow]` local y motivo.
 - CI ejecuta `cargo fmt --all --check`, `clippy -D warnings` y tests.
 
+## Resultado del audit
+
+- `cargo fmt --check`, Clippy y 80 pruebas: limpios.
+- `python tools/lint.py --project ...` ya no encuentra `unwrap/expect` en librería ni falta de README.
+- Hallazgo pendiente: 4 archivos superan 400 líneas:
+  - `crates/colibri-parser/src/lib.rs` (1290)
+  - `crates/colibri-core/src/reactive.rs` (706)
+  - `crates/colibri-macros/src/lib.rs` (581)
+  - `crates/colibri-ssr/src/lib.rs` (491)
+
+Plan: dividir parser SFC/template, motor reactivo, macros y tests en módulos en una ronda de calidad dedicada. No es un problema de correctitud, pero el audit estricto seguirá en rojo hasta hacerlo.
+
 ## Todavía no aplicado al repo completo
 
-- `missing_docs` y `unwrap_used` en los crates existentes: hay deuda de docs y
-  tests que usan `unwrap`; activarlo exige una ronda de refactor y allowances
-  justificadas por test.
+- `missing_docs` y `unwrap_used` en todos los crates: `colibri-core` mantiene dos `expect` justificados en `Memo` (invariante de inicialización) y saturación de ids.
 - Cobertura con `cargo llvm-cov --fail-under-lines 60` (Rust-teacher).
 - Mutation testing, OSV y auditoría de dependencias en CI.
-- Límite de 400 líneas por archivo: `reactive.rs` y `parser` superan el umbral.
 
 ## Regla para código nuevo
 

@@ -9,5 +9,8 @@ fn main() {
             <p>"HTML estático desde la ruta Rust."</p>
         </article>
     };
-    println!("{}", render_static(&node).expect("static view"));
+    match render_static(&node) {
+        Ok(html) => println!("{html}"),
+        Err(error) => eprintln!("{error}"),
+    }
 }

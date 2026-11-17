@@ -364,6 +364,10 @@ impl<T> Clone for Memo<T> {
 }
 
 impl<T: Clone + PartialEq + 'static> Memo<T> {
+    #[allow(
+        clippy::expect_used,
+        reason = "use_memo initializes the value before returning the handle"
+    )]
     pub fn get(&self) -> T {
         self.inner
             .value
@@ -371,6 +375,10 @@ impl<T: Clone + PartialEq + 'static> Memo<T> {
             .expect("Colibri memo must be initialized before reading")
     }
 
+    #[allow(
+        clippy::expect_used,
+        reason = "use_memo initializes the value before returning the handle"
+    )]
     pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
         self.inner
             .value
