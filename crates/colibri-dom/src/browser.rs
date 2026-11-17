@@ -6,7 +6,7 @@ use std::rc::Rc;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
-use web_sys::{Document, Element, Event, EventTarget, Node};
+use web_sys::{Document, Element, Event, EventTarget, Node, Text};
 
 struct KeyedEntry {
     handle: MountHandle,
@@ -359,15 +359,18 @@ impl MountState {
     fn hydrate_into(&mut self, view: &View, cursor: &mut ChildCursor) -> Result<(), JsValue> {
         match view {
             View::Text(value) => {
-                let node = cursor.next("text")?;
-                expect_text(&node)?;
-                node.set_text_content(Some(value));
+                if !value.is_empty() {
+                    let node = cursor.next_text(value, &self.document)?;
+                    node.set_text_content(Some(value));
+                } else {
+                    cursor.take_empty_text();
+                }
             }
             View::DynamicText(value) => {
-                let node = cursor.next("dynamic text")?;
-                expect_text(&node)?;
+                let current = value();
+                let node = cursor.next_text(&current, &self.document)?;
                 let value = Rc::clone(value);
-                let node = node.clone();
+                let node: Node = node.unchecked_ref::<Node>().clone();
                 let effect = use_effect(move || {
                     node.set_text_content(Some(&value()));
                 });
@@ -420,6 +423,7 @@ impl MountState {
 
 /// Walks existing DOM children in order while hydrating a view.
 struct ChildCursor {
+    parent: Element,
     nodes: Vec<Node>,
     index: usize,
 }
@@ -433,7 +437,11 @@ impl ChildCursor {
                 nodes.push(node);
             }
         }
-        Self { nodes, index: 0 }
+        Self {
+            parent: parent.clone(),
+            nodes,
+            index: 0,
+        }
     }
 
     fn next(&mut self, expected: &str) -> Result<Node, JsValue> {
@@ -453,6 +461,59 @@ impl ChildCursor {
             "hydration mismatch: {} extra node(s)",
             self.nodes.len() - self.index
         )))
+    }
+
+    /// Consume (or split) the next text node so this view piece owns exactly
+    /// `expected` UTF-16 units. Browsers coalesce adjacent SSR text into one node.
+    fn next_text(&mut self, expected: &str, document: &Document) -> Result<Text, JsValue> {
+        let wanted = expected.encode_utf16().count() as u32;
+        if !self.peek_is_text() {
+            if wanted != 0 {
+                return Err(JsValue::from_str(
+                    "hydration mismatch: expected a text node",
+                ));
+            }
+            let node = document.create_text_node("");
+            let node_ref: &Node = node.unchecked_ref();
+            match self.nodes.get(self.index) {
+                Some(anchor) => {
+                    self.parent.insert_before(node_ref, Some(anchor))?;
+                }
+                None => {
+                    self.parent.append_child(node_ref)?;
+                }
+            }
+            self.nodes.insert(self.index, node_ref.clone());
+        }
+
+        let node = self.next("text")?;
+        expect_text(&node)?;
+        let text: Text = node.unchecked_ref::<Text>().clone();
+        if text.length() > wanted {
+            let rest = text.split_text(wanted)?;
+            let rest_node: Node = rest.unchecked_ref::<Node>().clone();
+            self.nodes.insert(self.index, rest_node);
+        }
+        Ok(text)
+    }
+
+    fn peek_is_text(&self) -> bool {
+        self.nodes
+            .get(self.index)
+            .is_some_and(|node| node.node_type() == Node::TEXT_NODE)
+    }
+
+    /// SSR emits empty text as nothing, so an empty static text is optional.
+    fn take_empty_text(&mut self) {
+        let empty = self
+            .nodes
+            .get(self.index)
+            .filter(|node| node.node_type() == Node::TEXT_NODE)
+            .and_then(|node| node.text_content())
+            .is_some_and(|text| text.is_empty());
+        if empty {
+            self.index += 1;
+        }
     }
 }
 

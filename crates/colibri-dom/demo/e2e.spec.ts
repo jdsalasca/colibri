@@ -93,16 +93,18 @@ test('hydrates server-rendered DOM without losing nodes', async ({ page }) => {
   page.on('pageerror', (error) => errors.push(error.message));
 
   await page.goto('/hydrate.html');
+  await expect(page.locator('#hydrated p.label')).toHaveText('contador: 0');
   await page.evaluate(() => {
     const section = document.querySelector<HTMLElement>('#hydrated section');
-    const value = document.querySelector<HTMLElement>('#hydrated p.value');
+    const label = document.querySelector<HTMLElement>('#hydrated p.label');
     if (section) section.dataset.section = 'ssr';
-    if (value) value.dataset.marker = 'ssr';
+    if (label) label.dataset.marker = 'ssr';
   });
 
   await page.locator('#hydrated button.increment').click();
   await expect(page.locator('#hydrated p.value')).toHaveText('1');
-  await expect(page.locator('#hydrated p.value')).toHaveAttribute('data-marker', 'ssr');
+  await expect(page.locator('#hydrated p.label')).toHaveText('contador: 1');
+  await expect(page.locator('#hydrated p.label')).toHaveAttribute('data-marker', 'ssr');
   await expect(page.locator('#hydrated section')).toHaveAttribute('data-section', 'ssr');
   await expect(page.locator('#hydrated > *')).toHaveCount(1);
   expect(errors).toEqual([]);

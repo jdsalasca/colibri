@@ -27,12 +27,13 @@ Estado: **Aceptada** como MVP de hidratación; sin estado serializado ni fragmen
 ## Consecuencias
 - Se conserva la identidad de nodos y el foco; el HTML SSR no se recrea.
 - Los hooks se ejecutan otra vez en cliente: el estado arranca en sus valores iniciales. **No hay serialización de estado**; un SSR con `5` y estado inicial `0` se corrige a `0` al hidratar.
-- El árbol debe coincidir exactamente (etiquetas, orden; los atributos se reaplican). Texto con espacios implícitos entre etiquetas rompe el cursor.
+- El árbol debe coincidir en etiquetas y orden; atributos y texto se reaplican. El texto adyacente del SSR (que el navegador coalesce en un solo nodo) se parte por longitudes UTF-16, así que `"contador: " {valor}` hidrata bien; el texto vacío se omite o se crea.
 - Sin `Dynamic`/`Keyed`, sin streaming, sin Suspense y sin límites de error de hidratación.
 
 ## Validación
 - E2E Playwright `hydrates server-rendered DOM without losing nodes`:
   - marca `data-*` puesta antes del click sobrevive a la hidratación y al update;
+  - `contador: 0` (texto estático + dinámico coalescido por el navegador) se parte y pasa a `contador: 1`;
   - el valor SSR `0` pasa a `1` tras el click;
   - un solo `<section>` bajo `#hydrated`, sin duplicados ni errores de consola.
 - Fixture: `crates/colibri-dom/demo/hydrate.html` con marcado estático equivalente al componente `HydratedCounter`.

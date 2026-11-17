@@ -33,11 +33,13 @@ mod wasm {
     #[component]
     pub fn HydratedCounter() -> View {
         let count = use_state(0_i32);
-        let text = count.clone();
+        let value = count.clone();
+        let label = count.clone();
         let click = count.clone();
         dom! {
             <section class="hydrated">
-                <p class="value">{text.get()}</p>
+                <p class="label">"contador: " {label.get()}</p>
+                <p class="value">{value.get()}</p>
                 <button type="button" class="increment" on:click={move |_event| click.update(|n| *n += 1)}>
                     "+1"
                 </button>

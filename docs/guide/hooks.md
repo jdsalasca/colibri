@@ -84,7 +84,7 @@ Límite: la detección es sintáctica. Si el retorno es un alias o wrapper de `V
 let handle = colibri_dom::hydrate(dom! { <HydratedCounter/> }, container)?;
 ```
 
-- Exige que el árbol coincida etiqueta por etiqueta (los atributos se reaplican y el texto se corrige).
+- Exige que el árbol coincida etiqueta por etiqueta (los atributos se reaplican y el texto se corrige; el texto adyacente del SSR se parte para que `"label: " {valor}` funcione).
 - Conserva identidad de nodos y foco; los eventos y effects se registran sobre los nodos existentes.
 - Los hooks se ejecutan de nuevo: **no hay estado serializado**, el estado arranca en sus valores iniciales.
 - `Dynamic` y `Keyed` todavía no son hidratables: `hydrate` devuelve error.
