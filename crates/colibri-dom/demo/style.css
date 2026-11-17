@@ -107,6 +107,14 @@ h1 {
   font-size: 12px;
 }
 
+.reorder {
+  margin-right: 10px;
+}
+
+.increment {
+  min-width: 64px;
+}
+
 button {
   padding: 14px 28px;
   color: #fff;

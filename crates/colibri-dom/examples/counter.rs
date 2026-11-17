@@ -274,8 +274,8 @@ mod wasm {
             <main class="counter">
                 <TitleEffect count={counter.signal().clone()}/>
                 <SearchFocus/>
+                <p class="eyebrow">"COLIBRÍ · WASM"</p>
                 <Panel title="Contador reactivo">
-                    <p class="eyebrow">"COLIBRÍ · WASM"</p>
                     <p class="value">{counter_text.get()}</p>
                     <p class="double">"doble: " {doubled.get()}</p>
                     <p class="async">{match manuals_text.get() {

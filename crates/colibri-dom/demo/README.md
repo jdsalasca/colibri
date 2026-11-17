@@ -46,6 +46,6 @@ npx playwright install chromium
 npx playwright test
 ```
 
-Captura: [counter.png](counter.png).
+Captura: [counter.png](counter.png) y [demo-desktop.png](demo-desktop.png) (tema claro, buscador enfocado por ref).
 
 `pkg/` es generado y no se versiona.
