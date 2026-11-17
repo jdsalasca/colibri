@@ -6,7 +6,7 @@
 Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust-first*, orientado a construir aplicaciones accesibles para equipos de recursos limitados. Su objetivo es minimizar trabajo computacional, memoria adicional, latencia y bytes enviados al navegador **sin sacrificar accesibilidad ni experiencia de desarrollo**.
 
 > **Estado: fundación experimental (v0.0.1). No es aún un framework de producción.**
-> El subconjunto estático ya se renderiza a HTML desde `.colibri` y desde la macro `view!`. Aún **no** hay compilación a WASM, `#[component]`, reactividad, Vite/HMR, hidratación ni enrutamiento.
+> El subconjunto estático ya se renderiza a HTML desde `.colibri` y desde la macro `view!`. Aún **no** hay compilación a WASM, `#[component]`, integración reactiva con DOM, Vite/HMR, hidratación ni enrutamiento.
 
 ## La idea: dos sintaxis, un solo motor
 
@@ -20,7 +20,7 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 
 | Paquete | Estado | Función |
 |---|---|---|
-| `colibri-core` | Prototipo | `Signal<T>`, suscripciones y limpieza por `Scope` (notificación síncrona; sin seguimiento automático) |
+| `colibri-core` | Prototipo | Signals, scopes y un motor experimental con `use_state`, `use_memo`, `use_effect` y `batch` (sin browser/async todavía) |
 | `colibri-parser` | Prototipo | Scanner SFC y AST de template con spans (M01); no compila |
 | `colibri-ir` | Prototipo | IR semántica con spans y lowering SFC→IR (M02) |
 | `colibri-macros` | Prototipo | `view!` estático a IR; dinámico/eventos fallan en compilación (M03) |
@@ -102,3 +102,10 @@ El repositorio oficial es [jdsalasca/colibri](https://github.com/jdsalasca/colib
 ## Contribución y licencia
 
 Proyecto inicial. Antes de aceptar código de terceros o distribuir un framework público, decidir explícitamente licencia, política de contribuciones y política de seguridad. **No se ha elegido una licencia aún.** No copiar código de los frameworks estudiados sin revisar licencias, avisos y obligaciones.
+## Investigación y motor reactivo
+
+- [API experimental del core](crates/colibri-core/README.md): `use_state`, `use_memo`, `use_effect`, cleanup, `batch` y límites.
+- [Investigación sobre rendimiento web Rust/WASM](docs/research/2026-11-rust-web-performance.md): fuentes primarias, hipótesis falsables y diseño de benchmarks.
+- [Precedentes reactivos](precedentes/reactivity-and-web-performance.md): React, Solid, Svelte, Leptos, Dioxus y otros.
+
+Esto es una fundación reactiva, no una prueba de superioridad de rendimiento ni un motor de navegador operativo.

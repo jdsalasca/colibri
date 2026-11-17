@@ -5,7 +5,7 @@ Actualizado: 2026-11-16. Baseline M00–M04 verificado en local sobre `main` (Wi
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
 |---|---|---|
-| `colibri-core` | `Signal<T>` con suscripciones explícitas; `Scope` con callbacks de limpieza | autotracking, Memo, Effect, Scheduler, concurrencia, DOM |
+| `colibri-core` | `Signal<T>`, `Scope`; en la integración M05: tracking sincrónico, `use_state`, `use_memo` eager, `use_effect`, cleanup y `batch` (**prototipo**) | browser scheduler, tracking async, memo lazy, concurrencia, DOM |
 | `colibri-parser` | scanner SFC que ignora cierres dentro de strings/comentarios; AST de template con spans, atributos e interpolaciones; límites de tamaño/profundidad (M01) | lowering a IR, validación de expresiones Rust, HTML5 completo, entidades, SCSS |
 | `colibri-ir` | IR con spans: texto, texto dinámico, elementos, fragmentos, atributos y eventos; lowering SFC→IR (M02) | componentes/calls, props, control de flujo, análisis de dependencias, codegen |
 | `colibri-ssr` | render estático seguro desde IR; booleanos, void, allowlist de URLs y errores con span (M02) | SSR dinámico, streaming, islas, hidratación |
@@ -17,7 +17,7 @@ Actualizado: 2026-11-16. Baseline M00–M04 verificado en local sobre `main` (Wi
 ## Limitaciones y riesgos conocidos
 - El parser actual busca cierres de etiquetas de forma simple: no es seguro para HTML arbitrario ni etiquetas embebidas, comentarios complejos o bloques Rust que incluyan textos coincidentes.
 - El renderer está deliberadamente restringido. No ampliar tags/atributos sin revisar XSS, URL schemes, atributos booleanos y reglas HTML/ARIA.
-- El runtime usa notificaciones síncronas; reentrancia, dependencias cíclicas y orden de entrega necesitan un contrato verificable.
+- El núcleo reactivo nuevo usa reactividad síncrona con cola de memos antes de effects y límite de ejecuciones por ciclo. Suscripciones manuales todavía son síncronas; reentrancia, posibles ciclos y orden deben probarse en casos complejos. Los memos son eager y no existe scheduler del navegador.
 - La configuración de CI existe, pero el estado de sus ejecuciones debe comprobarse en GitHub.
 - Los archivos de ejemplo `Counter.rs` y `Counter.colibri` son **sintaxis objetivo**, no una implementación compilable.
 - No existe todavía evidencia de ventajas respecto a React, Solid, Svelte, Leptos o JS.
@@ -38,3 +38,9 @@ Actualizado: 2026-11-16. Baseline M00–M04 verificado en local sobre `main` (Wi
 | Benchmarks reproducibles | No implementados |
 
 Actualizar **únicamente** con resultados y enlaces al commit/CI. La sección es una protección contra declaraciones optimistas.
+
+## Avance M05 — motor reactivo experimental
+
+Se integra un subsistema de estado/derivaciones/efectos independiente del navegador, con pruebas de tracking dinámico, igualdad de Memo, batch, cleanup y 10.000 scopes. **No cerrar M05:** falta validar manejo seguro de ciclos/pánicos, reconciliación con el DOM, memory profiling y benchmark nativo/WASM.
+
+Investigación: [Rust web performance](research/2026-11-rust-web-performance.md); [comparación de precedentes](../precedentes/reactivity-and-web-performance.md). Las cifras de rendimiento aún no existen.

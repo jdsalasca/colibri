@@ -1,5 +1,8 @@
 //! Minimal single-threaded reactive primitives for experimental research.
-//! No automatic dependency tracking, batching, memoization or DOM bindings yet.
+//! Automatic synchronous dependencies and batching live in `reactive`.
+//! Browser rendering, async tracking and hydration are still unimplemented.
+mod reactive;
+pub use reactive::{batch, untrack, use_effect, use_effect_with_cleanup, use_memo, use_state, Effect, Memo};
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::rc::{Rc, Weak};
@@ -26,7 +29,7 @@ impl<T> Clone for Signal<T> {
     }
 }
 
-impl<T> Signal<T> {
+impl<T: 'static> Signal<T> {
     pub fn new(value: T) -> Self {
         Self {
             inner: Rc::new(Inner {
@@ -38,7 +41,22 @@ impl<T> Signal<T> {
     }
 
     pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
+        reactive::track_signal(self);
+        self.peek(f)
+    }
+
+    /// Read without tracking this signal as a dependency.
+    pub fn peek<R>(&self, f: impl FnOnce(&T) -> R) -> R {
         f(&self.inner.value.borrow())
+    }
+
+    pub(crate) fn identity(&self) -> usize {
+        Rc::as_ptr(&self.inner) as usize
+    }
+
+    #[cfg(test)]
+    pub(crate) fn subscriber_count(&self) -> usize {
+        self.inner.watchers.borrow().len()
     }
 
     pub fn get(&self) -> T
@@ -57,6 +75,8 @@ impl<T> Signal<T> {
             let mut current = self.inner.value.borrow_mut();
             f(&mut current);
         }
+        // Hold reactive flush until all direct subscribers are notified.
+        let _notification = reactive::notification_guard();
         // Snapshot observers, allowing subscriptions to change in a callback.
         let watchers: Vec<Watcher> = self.inner.watchers.borrow().values().cloned().collect();
         for watcher in watchers {
