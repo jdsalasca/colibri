@@ -57,6 +57,7 @@ version = "0.0.1"
 name = "colibri-macros"
 version = "0.0.1"
 dependencies = [
+ "colibri-core",
  "colibri-ir",
  "colibri-parser",
  "colibri-ssr",

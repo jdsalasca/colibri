@@ -3,8 +3,8 @@
 //! Browser rendering, async tracking and hydration are still unimplemented.
 mod reactive;
 pub use reactive::{
-    batch, take_error, untrack, use_effect, use_effect_with_cleanup, use_memo, use_state, Effect,
-    Memo, ReactiveError,
+    batch, take_error, untrack, use_effect, use_effect_with_cleanup, use_memo, use_state,
+    with_effect_scope, Effect, Memo, ReactiveError,
 };
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;

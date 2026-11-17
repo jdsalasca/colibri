@@ -78,6 +78,7 @@ thread_local! {
     static ACTIVE: Cell<usize> = const { Cell::new(0) };
     static TRACKING: RefCell<Vec<Weak<Observer>>> = const { RefCell::new(Vec::new()) };
     static LAST_ERROR: RefCell<Option<ReactiveError>> = const { RefCell::new(None) };
+    static EFFECT_SCOPE: RefCell<Vec<Vec<Effect>>> = const { RefCell::new(Vec::new()) };
 }
 
 struct HoldGuard;
@@ -126,6 +127,44 @@ pub fn untrack<R>(f: impl FnOnce() -> R) -> R {
     TRACKING.with(|stack| stack.borrow_mut().push(Weak::new()));
     let _guard = UntrackGuard;
     f()
+}
+
+struct EffectScopeGuard {
+    active: bool,
+}
+
+impl Drop for EffectScopeGuard {
+    fn drop(&mut self) {
+        if self.active {
+            EFFECT_SCOPE.with(|scopes| {
+                scopes.borrow_mut().pop();
+            });
+        }
+    }
+}
+
+/// Run `f` collecting effects created inside it. The returned effects keep
+/// those effects alive until the caller drops them (for example, a mounted view).
+pub fn with_effect_scope<R>(f: impl FnOnce() -> R) -> (R, Vec<Effect>) {
+    EFFECT_SCOPE.with(|scopes| scopes.borrow_mut().push(Vec::new()));
+    let mut guard = EffectScopeGuard { active: true };
+    let result = f();
+    let effects = EFFECT_SCOPE.with(|scopes| {
+        scopes
+            .borrow_mut()
+            .pop()
+            .expect("effect scope must be present")
+    });
+    guard.active = false;
+    (result, effects)
+}
+
+fn register_effect(effect: &Effect) {
+    EFFECT_SCOPE.with(|scopes| {
+        if let Some(scope) = scopes.borrow_mut().last_mut() {
+            scope.push(effect.clone());
+        }
+    });
 }
 
 struct TrackingGuard;
@@ -279,8 +318,20 @@ pub struct Effect {
     cleanup: Option<CleanupSlot>,
 }
 
+impl Clone for Effect {
+    fn clone(&self) -> Self {
+        Self {
+            observer: Rc::clone(&self.observer),
+            cleanup: self.cleanup.clone(),
+        }
+    }
+}
+
 impl Drop for Effect {
     fn drop(&mut self) {
+        if Rc::strong_count(&self.observer) != 1 {
+            return;
+        }
         self.observer.disposed.set(true);
         self.observer.dependencies.borrow_mut().clear();
         if let Some(cleanup) = &self.cleanup {
@@ -312,10 +363,12 @@ pub fn use_effect(callback: impl FnMut() + 'static) -> Effect {
     let observer = create_observer(Kind::Effect, callback);
     execute(&observer);
     flush();
-    Effect {
+    let effect = Effect {
         observer,
         cleanup: None,
-    }
+    };
+    register_effect(&effect);
+    effect
 }
 
 /// Effect variant with teardown before every re-run and at final disposal.
@@ -335,10 +388,12 @@ pub fn use_effect_with_cleanup(
     });
     execute(&observer);
     flush();
-    Effect {
+    let effect = Effect {
         observer,
         cleanup: Some(cleanup),
-    }
+    };
+    register_effect(&effect);
+    effect
 }
 
 struct MemoInner<T> {
@@ -663,6 +718,49 @@ mod tests {
         assert_eq!(runs.get(), 2);
         assert!(take_error().is_none());
         drop(effect);
+    }
+
+    #[test]
+    fn effect_clone_survives_until_last_handle() {
+        let signal = use_state(0);
+        let runs = Rc::new(Cell::new(0));
+        let effect = {
+            let signal = signal.clone();
+            let runs = runs.clone();
+            use_effect(move || {
+                signal.get();
+                runs.set(runs.get() + 1);
+            })
+        };
+        let clone = effect.clone();
+        drop(effect);
+        signal.set(1);
+        assert_eq!(runs.get(), 2);
+        drop(clone);
+        signal.set(2);
+        assert_eq!(runs.get(), 2);
+    }
+
+    #[test]
+    fn effect_scope_owns_effects_created_inside() {
+        let signal = use_state(0);
+        let runs = Rc::new(Cell::new(0));
+        let (value, effects) = with_effect_scope(|| {
+            let signal = signal.clone();
+            let runs = runs.clone();
+            use_effect(move || {
+                signal.get();
+                runs.set(runs.get() + 1);
+            });
+            42
+        });
+        assert_eq!(value, 42);
+        assert_eq!(runs.get(), 1);
+        signal.set(1);
+        assert_eq!(runs.get(), 2);
+        drop(effects);
+        signal.set(2);
+        assert_eq!(runs.get(), 2);
     }
 
     #[test]

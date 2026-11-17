@@ -26,8 +26,9 @@ batch(|| {
 
 - `use_state(initial) -> Signal<T>`: estado con lectura/escritura.
 - `use_memo(compute) -> Memo<T>`: derivación eager con igualdad (`PartialEq`); no notifica si el valor no cambió.
-- `use_effect(fn)`: efecto síncrono; se re-ejecuta cuando cambian las señales leídas.
+- `use_effect(fn)`: efecto síncrono; se re-ejecuta cuando cambian las señales leídas. Dentro de un `#[component]` que devuelve `View`, el montaje es dueño del efecto aunque ignores el handle.
 - `use_effect_with_cleanup(fn -> cleanup)`: cleanup antes de re-run y al desmontar.
+- `with_effect_scope(fn) -> (R, Vec<Effect>)`: ejecuta `fn` y recoge los efectos creados dentro; es la base del ownership por componente.
 - `batch(fn)`: agrupa cambios para que los efectos vean el estado final.
 - `untrack(fn)`: lee señales sin registrar dependencia.
 - `take_error()`: devuelve `ReactiveError::CycleLimit` tras 4.096 ejecuciones.
@@ -63,6 +64,18 @@ pub fn Counter() -> View {
 
 `mount(view, container)` construye el DOM, suscribe los bindings y limpia listeners/effects al soltar el `MountHandle`. Demo reproducible: [`colibri-dom/demo`](../../crates/colibri-dom/demo/README.md).
 
+Los effects creados por un componente que devuelve `View` quedan **ligados a su montaje**: `#[component]` los recoge con `with_effect_scope` y `mount` los limpia al desmontar, sin que tengas que guardar el `Effect`:
+
+```rust
+#[component]
+pub fn TitleEffect(count: Signal<i32>) -> View {
+    use_effect(move || set_document_title(&format!("Contador {}", count.get())));
+    View::Fragment(Vec::new())
+}
+```
+
+Límite: la detección es sintáctica. Si el retorno es un alias o wrapper de `View`, conserva el handle o anota el retorno como `View`. Ver [ADR 0015](../adr/0015-component-effect-ownership.md).
+
 ## Async y lazy
 
 ```rust
@@ -92,6 +105,7 @@ match manuals.get() {
 - **Hidratación** SSR → cliente.
 - **Suspense/streaming**: `Resource` no suspende el render ni hace streaming.
 - **Cancelación de futures** al desmontar y code splitting/lazy components.
+- **Scope de terceros**: sólo los componentes `-> View` reciben effects con ownership automático; SSR descarta los efectos.
 
 ## Semántica recomendada para el futuro
 

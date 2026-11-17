@@ -9,6 +9,7 @@ test('counter, async resource and dynamic fragment', async ({ page }) => {
 
   await page.goto('/');
   await expect(page.locator('.value')).toHaveText('0');
+  await expect(page).toHaveTitle('Contador 0');
   await expect(page.locator('.async')).toHaveText('42 manuales listos', {
     timeout: 5_000,
   });
@@ -36,6 +37,7 @@ test('counter, async resource and dynamic fragment', async ({ page }) => {
   await page.locator('button.increment').click();
   await expect(page.locator('.value')).toHaveText('1');
   await expect(page.locator('.double')).toHaveText('doble: 2');
+  await expect(page).toHaveTitle('Contador 1');
 
   await expect(page.locator('[data-colibri-dynamic]')).toHaveCount(0);
   await expect(page.locator('div[style*="display: contents"]')).toHaveCount(0);

@@ -27,6 +27,11 @@ pub enum View {
     DynamicFragment(Rc<dyn Fn() -> Vec<View>>),
     /// A keyed fragment: existing keys keep their DOM nodes on reorder.
     KeyedFragment(Rc<dyn Fn() -> Vec<KeyedView>>),
+    /// A view with component-owned effects that live until unmount.
+    Scoped {
+        view: Box<View>,
+        effects: Rc<RefCell<Option<Vec<Effect>>>>,
+    },
 }
 
 /// A keyed item for [`View::KeyedFragment`].
@@ -149,6 +154,12 @@ impl MountState {
             }
             View::DynamicFragment(render) => self.render_dynamic(render, parent)?,
             View::KeyedFragment(render) => self.render_keyed(render, parent)?,
+            View::Scoped { view, effects } => {
+                if let Some(effects) = effects.borrow_mut().take() {
+                    self.effects.extend(effects);
+                }
+                self.render_into(view, parent)?;
+            }
         }
         Ok(())
     }
@@ -349,6 +360,18 @@ impl MountState {
 fn validate_dom_attribute(name: &str, value: Option<&str>) -> Result<(), JsValue> {
     validate_attribute(name, value)
         .map_err(|kind| JsValue::from_str(&format!("unsafe attribute `{name}`: {}", kind.as_str())))
+}
+
+/// Attach component effects so the mount owns their lifetime.
+pub fn attach_effects(view: View, effects: Vec<Effect>) -> View {
+    if effects.is_empty() {
+        view
+    } else {
+        View::Scoped {
+            view: Box::new(view),
+            effects: Rc::new(RefCell::new(Some(effects))),
+        }
+    }
 }
 
 /// Mount a view inside `container`. The returned handle owns effects/listeners.

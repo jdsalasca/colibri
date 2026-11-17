@@ -710,6 +710,14 @@ fn expand_component(function: ItemFn) -> Result<TokenStream2> {
         block,
     };
     let output = &sig.output;
+    let attach = if returns_view(output) {
+        quote! { ::colibri_dom::attach_effects(__colibri_value, __colibri_effects) }
+    } else {
+        quote! {{
+            drop(__colibri_effects);
+            __colibri_value
+        }}
+    };
 
     Ok(quote! {
         #(#docs)*
@@ -725,10 +733,29 @@ fn expand_component(function: ItemFn) -> Result<TokenStream2> {
         #component_doc
         #[allow(non_snake_case)]
         #vis fn #name(__colibri_props: #props_ident) #output {
-            let #props_ident { #(#field_names),* } = __colibri_props;
-            #impl_ident(#(#field_names),*)
+            let (__colibri_value, __colibri_effects) =
+                ::colibri_core::with_effect_scope(|| {
+                    let #props_ident { #(#field_names),* } = __colibri_props;
+                    #impl_ident(#(#field_names),*)
+                });
+            #attach
         }
     })
+}
+
+fn returns_view(output: &ReturnType) -> bool {
+    let ReturnType::Type(_, ty) = output else {
+        return false;
+    };
+    matches!(
+        &**ty,
+        Type::Path(path)
+            if path
+                .path
+                .segments
+                .last()
+                .is_some_and(|segment| segment.ident == "View")
+    )
 }
 
 fn validate_component(function: &ItemFn) -> Result<()> {

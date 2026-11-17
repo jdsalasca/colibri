@@ -1,7 +1,7 @@
 //! WASM counter: `cargo build --target wasm32-unknown-unknown --example counter --release`.
 #[cfg(target_arch = "wasm32")]
 mod wasm {
-    use colibri_core::{use_memo, use_state, Resource};
+    use colibri_core::{use_effect, use_memo, use_state, Resource, Signal};
     use colibri_dom::{mount, use_async, KeyedView, View};
     use colibri_macros::{component, dom};
     use gloo_timers::future::TimeoutFuture;
@@ -15,6 +15,19 @@ mod wasm {
                 <Fragment nodes={children}/>
             </section>
         }
+    }
+
+    #[component]
+    pub fn TitleEffect(count: Signal<i32>) -> View {
+        use_effect({
+            let count = count.clone();
+            move || {
+                if let Some(document) = web_sys::window().and_then(|window| window.document()) {
+                    document.set_title(&format!("Contador {}", count.get()));
+                }
+            }
+        });
+        View::Fragment(Vec::new())
     }
 
     #[wasm_bindgen(start)]
@@ -74,6 +87,7 @@ mod wasm {
 
         let view = dom! {
             <main class="counter">
+                <TitleEffect count={count.clone()}/>
                 <Panel title="Contador reactivo">
                     <p class="eyebrow">"COLIBRÍ · WASM"</p>
                     <p class="value">{count_text.get()}</p>

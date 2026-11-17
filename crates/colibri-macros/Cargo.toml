@@ -12,6 +12,7 @@ quote = "1"
 syn = { version = "2", features = ["full"] }
 
 [dev-dependencies]
+colibri-core = { path = "../colibri-core" }
 colibri-ir = { path = "../colibri-ir" }
 colibri-parser = { path = "../colibri-parser" }
 colibri-ssr = { path = "../colibri-ssr" }
