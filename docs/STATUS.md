@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-16. M00–M05 se validaron en CI (`8eb70c2`, 58 pruebas; PR #3, 55). M06a pasó CI en `93c7e5a` (68 pruebas). M06b pasó CI en `1b1efaf` (75 pruebas). Componentes funcionales, props tipadas, children y `view!` dinámico pasaron CI en `8a91853`: [main run 43995971781](https://github.com/jdsalasca/colibri/actions/runs/43995971781), [develop run 43995971500](https://github.com/jdsalasca/colibri/actions/runs/43995971500), **80 pruebas**. No se ha probado navegador ni rendimiento comparativo.
+Actualizado: 2026-11-16. M00–M06 y componentes funcionales se validaron en CI (`8a91853`, 80 pruebas; `b51206e`, 82). El dashboard externo **ManualOps** (Axum + Colibrí) compila, pasa 5 tests, responde HTTP real y tiene capturas desktop/móvil. No se ha probado navegador para WASM ni rendimiento comparativo.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
@@ -33,7 +33,7 @@ Actualizado: 2026-11-16. M00–M05 se validaron en CI (`8eb70c2`, 58 pruebas; PR
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | Local: 82 pruebas. CI `8a91853`: 80 pruebas |
+| `cargo test --workspace` | CI `b51206e`: 82 pruebas, 0 fallos. Local: 82 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
@@ -42,7 +42,7 @@ Actualizado: 2026-11-16. M00–M05 se validaron en CI (`8eb70c2`, 58 pruebas; PR
 | `cargo test -p colibri-macros` | Componentes, props tipadas, composición, children y `Option`/null safety (M03b) |
 | Audit portátil de `teachers` | fmt + clippy + README + `expect` limpios; quedan 4 archivos >400 líneas (deuda documentada en [quality](quality.md)) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
-| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `8a91853`: [run 43995971781](https://github.com/jdsalasca/colibri/actions/runs/43995971781) / [run 43995971500](https://github.com/jdsalasca/colibri/actions/runs/43995971500) |
+| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `b51206e`: [run 43998371532](https://github.com/jdsalasca/colibri/actions/runs/43998371532) / [run 43998334408](https://github.com/jdsalasca/colibri/actions/runs/43998334408) |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |
 
@@ -61,6 +61,16 @@ Investigación: [Rust web performance](research/2026-11-rust-web-performance.md)
 **M06b:** `colibri-codegen` genera un programa Rust con el `<script>` del SFC dentro de `main`, `format!` para cada expresión y atributos dinámicos, y renderizado final con `colibri-ssr`. `build` emite el `.rs`; `eval` crea un proyecto Cargo temporal y lo ejecuta. Los errores de tipo los da rustc. Ver [ADR 0008](adr/0008-sfc-rust-codegen.md).
 
 **No cierra M06:** falta paridad dinámica con `view!`, eventos/DOM, streaming, islas e hidratación.
+
+## App de validación — ManualOps (`../colibri-dashboard`)
+
+Dashboard de manuales internos con Axum + componentes Colibrí, sin JavaScript:
+
+- `cargo fmt --check`, `clippy -D warnings` y 5 tests limpios.
+- HTTP real: `/health` 200, `/` 200, `/manuals` 200, `/manuals/new` 200, `/manuals/1` 200, `/manuals/9999` 404, `POST /manuals` 303.
+- Capturas: `dashboard.png` (desktop) y `dashboard-mobile.png` (390×844).
+- Sirve `/static/app.css` compilado desde SCSS.
+- Limitaciones: sin persistencia, autenticación, edición ni eventos cliente.
 
 ### Entrega entre agentes
 
