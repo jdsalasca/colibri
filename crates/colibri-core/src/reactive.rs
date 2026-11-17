@@ -12,6 +12,8 @@ use std::collections::{HashSet, VecDeque};
 use std::rc::{Rc, Weak};
 
 const MAX_FLUSH_RUNS: usize = 4096;
+type Cleanup = Box<dyn FnOnce()>;
+type CleanupSlot = Rc<RefCell<Option<Cleanup>>>;
 
 #[derive(Clone, Copy)]
 enum Kind {
@@ -192,7 +194,7 @@ pub fn use_state<T: 'static>(initial: T) -> Signal<T> {
 /// Keep this handle in a component `Scope` or another owner.
 pub struct Effect {
     observer: Rc<Observer>,
-    cleanup: Option<Rc<RefCell<Option<Box<dyn FnOnce()>>>>>,
+    cleanup: Option<CleanupSlot>,
 }
 
 impl Drop for Effect {
@@ -236,7 +238,7 @@ pub fn use_effect(callback: impl FnMut() + 'static) -> Effect {
 pub fn use_effect_with_cleanup(
     mut callback: impl FnMut() -> Box<dyn FnOnce()> + 'static,
 ) -> Effect {
-    let cleanup: Rc<RefCell<Option<Box<dyn FnOnce()>>>> = Rc::new(RefCell::new(None));
+    let cleanup: CleanupSlot = Rc::new(RefCell::new(None));
     let slot = Rc::clone(&cleanup);
     let observer = create_observer(Kind::Effect, move || {
         // Do not hold a RefCell borrow while user cleanup code executes.
