@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-16. M00–M04 y M05 se validaron en GitHub Actions para el PR #3 (commit `5dadebd45d619aaeb73f4fd840c8a51bcbdf655d`) con **55 pruebas**. Sobre esa base se añadió el endurecimiento M05 (ciclos recuperables, `stats()`, `Scope::dispose`): **58 pruebas en local**, pendiente de CI para el nuevo commit. No se ha probado navegador ni rendimiento comparativo.
+Actualizado: 2026-11-16. M00–M04 y M05 se validaron en GitHub Actions para el PR #3 (commit `5dadebd45d619aaeb73f4fd840c8a51bcbdf655d`) con **55 pruebas**. El endurecimiento M05 (ciclos recuperables, `stats()`, `Scope::dispose`) pasó CI en `main` y `develop` para `8eb70c2`: [main run 43991479155](https://github.com/jdsalasca/colibri/actions/runs/43991479155), [develop run 43991479721](https://github.com/jdsalasca/colibri/actions/runs/43991479721), **58 pruebas**. No se ha probado navegador ni rendimiento comparativo.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
@@ -34,7 +34,7 @@ Actualizado: 2026-11-16. M00–M04 y M05 se validaron en GitHub Actions para el 
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
-| CI de GitHub con `--check` | Verificado para `5dadebd` ([run 43989925541](https://github.com/jdsalasca/colibri/actions/runs/43989925541)); commit de endurecimiento M05 pendiente |
+| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `8eb70c2`: [run 43991479155](https://github.com/jdsalasca/colibri/actions/runs/43991479155) / [run 43991479721](https://github.com/jdsalasca/colibri/actions/runs/43991479721) |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |
 
