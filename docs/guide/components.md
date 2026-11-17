@@ -59,8 +59,33 @@ Reglas de `view!`:
 - Atributos dinámicos: `title={name}`.
 - Booleanos: `hidden`.
 - Componentes: `<Card title="Productos" count={total}/>`.
-- Por ahora los componentes no aceptan children; usa props.
-- Eventos (`on:click`) siguen bloqueados: pertenecen a M07 (DOM/WASM).
+- Children: `<Layout title="Panel"><p>"contenido"</p></Layout>`.
+- Para insertar `Vec<Node>` dentro de un componente, usa el componente reservado `<Fragment nodes={children}/>`.
+
+### Layout con children
+
+```rust
+#[component]
+pub fn Layout(title: String, children: Vec<Node>) -> Node {
+    view! {
+        <html>
+            <head><title>{title}</title></head>
+            <body>
+                <nav>"ManualOps"</nav>
+                <Fragment nodes={children}/>
+            </body>
+        </html>
+    }
+}
+
+let page = view! {
+    <Layout title="Dashboard">
+        <h1>"Hola"</h1>
+    </Layout>
+};
+```
+
+`view!` añade automáticamente `children: vec![...]` cuando un componente tiene contenido. El struct de props debe declarar `children: Vec<Node>`. Sin children nombrados/slots todavía.
 
 ## Servir con Axum
 

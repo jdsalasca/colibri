@@ -19,6 +19,16 @@ fn MaybeName(name: Option<String>) -> Node {
     view! { <p>{name.unwrap_or_else(|| String::from("sin nombre"))}</p> }
 }
 
+#[component]
+fn Panel(title: String, children: Vec<Node>) -> Node {
+    view! {
+        <section>
+            <h2>{title}</h2>
+            <Fragment nodes={children}/>
+        </section>
+    }
+}
+
 #[test]
 fn renders_component_with_typed_props() {
     let node = Greeting(GreetingProps {
@@ -48,5 +58,19 @@ fn option_props_are_null_safe() {
     assert_eq!(
         render_static(&MaybeName(MaybeNameProps { name: None })).unwrap(),
         "<p>sin nombre</p>"
+    );
+}
+
+#[test]
+fn components_accept_children_and_keep_order() {
+    let node = view! {
+        <Panel title="Datos">
+            <p>"uno"</p>
+            <p>"dos"</p>
+        </Panel>
+    };
+    assert_eq!(
+        render_static(&node).unwrap(),
+        "<section><h2>Datos</h2><p>uno</p><p>dos</p></section>"
     );
 }

@@ -18,8 +18,9 @@ Estado: **Aceptada** para el subconjunto SSR.
    - atributos estáticos, booleanos y `{expr}`,
    - llamadas a componentes `PascalCase` con props.
 3. La composición es directa: un componente devuelve `Node` y se inserta en el árbol.
-4. El render sigue siendo `colibri_ssr::render_static`; no hay runtime cliente.
-5. `Option<T>` es la representación de ausencia; no se introduce `null`.
+4. Children: si un componente tiene contenido, `view!` añade `children: vec![...]` al struct de props. El componente declara `children: Vec<Node>` y lo inserta con el componente reservado `<Fragment nodes={children}/>`. No hay slots nombrados.
+5. El render sigue siendo `colibri_ssr::render_static`; no hay runtime cliente.
+6. `Option<T>` es la representación de ausencia; no se introduce `null`.
 
 ## Alternativas
 - Props como argumentos posicionales: impide construir el componente desde `view!` sin conocer la firma.
@@ -31,7 +32,8 @@ Estado: **Aceptada** para el subconjunto SSR.
 - API ergonómica y fuertemente tipada; los errores de props son errores de rustc.
 - El macro genera structs públicas; los nombres `<Nombre>Props` quedan reservados.
 - Los props deben ser owned y `Display` sólo si se interpolan.
-- Sin children/slots, eventos, estado cliente ni hidratación todavía.
+- `Fragment` es un nombre reservado para insertar listas de nodos.
+- Sin slots nombrados, eventos, estado cliente ni hidratación todavía.
 - La paridad SFC no cubre componentes: el SFC aún no resuelve símbolos Rust.
 
 ## Validación

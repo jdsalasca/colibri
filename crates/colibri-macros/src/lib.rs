@@ -144,13 +144,6 @@ fn parse_element(input: ParseStream) -> Result<ViewNode> {
         parse_children(input, &tag, tag_span)?
     };
 
-    if is_component(&tag) && !children.is_empty() {
-        return Err(syn::Error::new(
-            tag_span,
-            "component children are not supported yet; use props",
-        ));
-    }
-
     Ok(ViewNode::Element(ViewElement {
         tag,
         tag_span,
@@ -278,6 +271,7 @@ fn node_tokens(node: &ViewNode) -> Result<TokenStream2> {
                 }
             })
         }
+        ViewNode::Element(element) if element.tag == "Fragment" => fragment_tokens(element),
         ViewNode::Element(element) if is_component(&element.tag) => component_tokens(element),
         ViewNode::Element(element) => element_tokens(element),
     }
@@ -314,7 +308,7 @@ fn component_tokens(element: &ViewElement) -> Result<TokenStream2> {
         )
     })?;
     let props = format_ident!("{}Props", tag);
-    let fields = element
+    let mut fields = element
         .attributes
         .iter()
         .map(|attribute| {
@@ -332,7 +326,56 @@ fn component_tokens(element: &ViewElement) -> Result<TokenStream2> {
             Ok(quote! { #field: #value })
         })
         .collect::<Result<Vec<_>>>()?;
+    if !element.children.is_empty() {
+        let children = element
+            .children
+            .iter()
+            .map(node_tokens)
+            .collect::<Result<Vec<_>>>()?;
+        fields.push(quote! { children: ::std::vec![#(#children),*] });
+    }
     Ok(quote! { #tag(#props { #(#fields),* }) })
+}
+
+/// `<Fragment nodes={children}/>` splices an owned `Vec<Node>` without escaping.
+fn fragment_tokens(element: &ViewElement) -> Result<TokenStream2> {
+    if !element.children.is_empty() {
+        return Err(syn::Error::new(
+            element.tag_span,
+            "Fragment does not accept children; use nodes={vec}",
+        ));
+    }
+    let mut nodes = None;
+    for attribute in &element.attributes {
+        if attribute.name != "nodes" {
+            return Err(syn::Error::new(
+                element.tag_span,
+                "Fragment only accepts nodes={expression}",
+            ));
+        }
+        let ViewAttributeValue::Dynamic(expression) = &attribute.value else {
+            return Err(syn::Error::new(
+                element.tag_span,
+                "Fragment nodes must be a {expression}",
+            ));
+        };
+        nodes = Some(expression);
+    }
+    let span = span_tokens();
+    match nodes {
+        Some(nodes) => Ok(quote! {
+            ::colibri_ir::Node::Fragment {
+                children: #nodes,
+                span: #span,
+            }
+        }),
+        None => Ok(quote! {
+            ::colibri_ir::Node::Fragment {
+                children: ::std::vec![],
+                span: #span,
+            }
+        }),
+    }
 }
 
 fn attribute_tokens(attribute: &ViewAttribute) -> TokenStream2 {
@@ -504,11 +547,8 @@ mod tests {
     }
 
     #[test]
-    fn rejects_component_children() {
-        let error = parse_view("<Card>\"x\"</Card>")
-            .err()
-            .expect("expected a syntax error");
-        assert!(error.to_string().contains("children"));
+    fn parses_component_children() {
+        assert!(parse_view("<Card>\"x\"</Card>").is_ok());
     }
 
     #[test]
