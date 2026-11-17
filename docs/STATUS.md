@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-16. **No presume que CI haya pasado**. Cualquier agente debe revisar de nuevo la rama y los resultados antes de cambiar este archivo.
+Actualizado: 2026-11-16. Los workflows de GitHub Actions asociados al commit `801f768811e8e9379fceba92d03fb18846e1fc63` terminaron en **success** ([run 3](https://github.com/jdsalasca/colibri/actions/runs/43986730971) y [run 4](https://github.com/jdsalasca/colibri/actions/runs/43986737277)). Esta verificación no demuestra funcionalidad de framework completo. Cualquier agente debe revisar nuevamente la rama y sus resultados.
 
 ## Existente en la rama de fundación
 | Módulo | Implementado (limitado) | NO implementado |
@@ -24,7 +24,7 @@ Actualizado: 2026-11-16. **No presume que CI haya pasado**. Cualquier agente deb
 ## Registro de verificación
 | Comprobación | Estado |
 |---|---|
-| Integridad documental en GitHub | Verificar al fusionar |
+| Integridad documental en GitHub | Archivos del PR consultados mediante GitHub; verificar tras fusionar |
 | `cargo fmt --all --check` | No verificado aquí |
 | `cargo clippy --workspace --all-targets -- -D warnings` | No verificado aquí |
 | `cargo test --workspace` | No verificado aquí |
