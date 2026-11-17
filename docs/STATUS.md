@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliación coarse) pasaron CI en `9ede57a` (83 pruebas). Con `Dynamic`, URL allowlist y rollback son **84 pruebas en local**, pendiente de CI. Terra revisó el framework y se aplicaron 5 de sus 8 hallazgos. Demo Chrome: `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, sin errores. No se ha probado rendimiento ni hidratación SSR.
+Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliación coarse) pasaron CI en `4c6c1ec`: **84 pruebas**, build WASM y demo Chrome (`0→1`, doble `0→2`, async `42`, condicional `1→0→1`, sin errores). Terra revisó el framework y se aplicaron 5 de 8 hallazgos. ManualOps (Axum + Colibrí) sigue validado. No se ha probado rendimiento ni hidratación SSR.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
@@ -36,7 +36,7 @@ Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliaci
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | Local: 84 pruebas. CI `9ede57a`: 83 |
+| `cargo test --workspace` | CI `4c6c1ec`: 84 pruebas, 0 fallos. Local: 84 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
@@ -49,7 +49,7 @@ Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliaci
 | Revisión Terra | 8 hallazgos; 5 aplicados, 3 diferidos en [review](reviews/2026-11-17-terra.md) |
 | Audit portátil de `teachers` | fmt + clippy + README + `expect` limpios; quedan 4 archivos >400 líneas (deuda documentada en [quality](quality.md)) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
-| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `9ede57a`: [run 44002475900](https://github.com/jdsalasca/colibri/actions/runs/44002475900) / [run 44002475523](https://github.com/jdsalasca/colibri/actions/runs/44002475523) (validate + wasm) |
+| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `4c6c1ec`: [run 44103706139](https://github.com/jdsalasca/colibri/actions/runs/44103706139) / [run 44103706093](https://github.com/jdsalasca/colibri/actions/runs/44103706093) (validate + wasm) |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |
 
