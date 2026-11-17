@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-16. M00–M06 y componentes funcionales se validaron en CI (`8a91853`, 80 pruebas; `b51206e`, 82). El dashboard externo **ManualOps** (Axum + Colibrí) compila, pasa 5 tests, responde HTTP real y tiene capturas desktop/móvil. No se ha probado navegador para WASM ni rendimiento comparativo.
+Actualizado: 2026-11-16. M00–M06, componentes funcionales y M07 parcial (DOM/WASM) pasaron CI en `f2ff960`: 82 pruebas en host, build WASM y demo Chrome (`0→1`, doble `0→2`). El dashboard externo **ManualOps** (Axum + Colibrí) compila, pasa 5 tests y responde HTTP real. No se ha probado rendimiento comparativo ni hidratación SSR.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
@@ -36,18 +36,18 @@ Actualizado: 2026-11-16. M00–M06 y componentes funcionales se validaron en CI 
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | CI `b51206e`: 82 pruebas, 0 fallos. Local: 82 |
+| `cargo test --workspace` | CI `f2ff960`: 82 pruebas, 0 fallos. Local: 82 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
 | `colibri eval examples/greeting.colibri` | Compila el script con rustc y emite HTML con valores calculados (M06b) |
 | `cargo test -p colibri-ssr` | 12 pruebas: escape, URL allowlist, dinámicos, meta/link seguros y rechazos |
 | `cargo test -p colibri-macros` | Componentes, props tipadas, composición, children y `Option`/null safety (M03b) |
-| Build WASM + wasm-bindgen | `colibri-dom` compila a `wasm32-unknown-unknown`; demo servido sin Vite |
+| Build WASM + wasm-bindgen | CI `f2ff960` compila `wasm32-unknown-unknown`; demo local con wasm-bindgen |
 | Chrome/Playwright | Contador: `0 → 1`, `doble 0 → 2`, sin errores de consola; captura `counter.png` |
 | Audit portátil de `teachers` | fmt + clippy + README + `expect` limpios; quedan 4 archivos >400 líneas (deuda documentada en [quality](quality.md)) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
-| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `b51206e`: [run 43998371532](https://github.com/jdsalasca/colibri/actions/runs/43998371532) / [run 43998334408](https://github.com/jdsalasca/colibri/actions/runs/43998334408) |
+| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `f2ff960`: [run 44000546147](https://github.com/jdsalasca/colibri/actions/runs/44000546147) / [run 44000546225](https://github.com/jdsalasca/colibri/actions/runs/44000546225) (validate + wasm) |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |
 
