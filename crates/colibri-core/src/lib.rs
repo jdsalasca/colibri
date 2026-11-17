@@ -2,7 +2,9 @@
 //! Automatic synchronous dependencies and batching live in `reactive`.
 //! Browser rendering, async tracking and hydration are still unimplemented.
 mod reactive;
-pub use reactive::{batch, untrack, use_effect, use_effect_with_cleanup, use_memo, use_state, Effect, Memo};
+pub use reactive::{
+    batch, untrack, use_effect, use_effect_with_cleanup, use_memo, use_state, Effect, Memo,
+};
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::rc::{Rc, Weak};

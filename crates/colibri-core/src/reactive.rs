@@ -78,7 +78,9 @@ struct UntrackGuard;
 
 impl Drop for UntrackGuard {
     fn drop(&mut self) {
-        TRACKING.with(|stack| { stack.borrow_mut().pop(); });
+        TRACKING.with(|stack| {
+            stack.borrow_mut().pop();
+        });
     }
 }
 
@@ -152,10 +154,15 @@ fn flush() {
     loop {
         let next = ENGINE.with(|engine| {
             let mut engine = engine.borrow_mut();
-            engine.memos.pop_front().or_else(|| engine.effects.pop_front())
+            engine
+                .memos
+                .pop_front()
+                .or_else(|| engine.effects.pop_front())
         });
         let Some(next) = next else { break };
-        let Some(observer) = next.upgrade() else { continue };
+        let Some(observer) = next.upgrade() else {
+            continue;
+        };
         observer.queued.set(false);
         if observer.disposed.get() {
             continue;
@@ -195,7 +202,10 @@ pub(crate) fn track_signal<T: 'static>(signal: &Signal<T>) {
             enqueue(&observer);
         }
     });
-    observer.dependencies.borrow_mut().push(Box::new(subscription));
+    observer
+        .dependencies
+        .borrow_mut()
+        .push(Box::new(subscription));
 }
 
 /// Create an owned state signal; unlike React, its identity is not coupled
@@ -304,9 +314,9 @@ impl<T: Clone + PartialEq + 'static> Memo<T> {
     }
 
     pub fn with<R>(&self, f: impl FnOnce(&T) -> R) -> R {
-        self.inner.value.with(|value| {
-            f(value.as_ref().expect("Colibri memo must be initialized"))
-        })
+        self.inner
+            .value
+            .with(|value| f(value.as_ref().expect("Colibri memo must be initialized")))
     }
 }
 
@@ -413,7 +423,11 @@ mod tests {
             let right = right.clone();
             let observed = observed.clone();
             use_effect(move || {
-                let value = if select_left.get() { left.get() } else { right.get() };
+                let value = if select_left.get() {
+                    left.get()
+                } else {
+                    right.get()
+                };
                 observed.borrow_mut().push(value);
             })
         };
