@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-17. M00-M07 parcial (DOM/WASM, async, lazy, Dynamic, Keyed, ownership de effects y cancelación cooperativa) pasaron CI en `c54408d` para effects; la cancelación de `use_async` está **en local con 88 pruebas** y pendiente de CI. E2E Playwright/Chromium: `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, keyed `A,B,C→C,B,A` con foco y título `Contador 0→1`. Terra: 8 de 8 hallazgos aplicados. ManualOps (Axum + Colibrí) sigue validado. No se ha probado rendimiento ni hidratación SSR.
+Actualizado: 2026-11-17. M00-M07 parcial (DOM/WASM, async, lazy, Dynamic, Keyed, ownership de effects y cancelación cooperativa) pasaron CI en `70fa4cd`: **88 pruebas**, build WASM y **E2E Playwright/Chromium** (`0→1`, doble `0→2`, async `42`, condicional `1→0→1`, keyed `A,B,C→C,B,A` con foco, título `Contador 0→1`). Terra: 8 de 8 hallazgos aplicados. ManualOps (Axum + Colibrí) sigue validado. No se ha probado rendimiento ni hidratación SSR.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
@@ -36,7 +36,7 @@ Actualizado: 2026-11-17. M00-M07 parcial (DOM/WASM, async, lazy, Dynamic, Keyed,
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | Local: 88 pruebas, 0 fallos. CI `c54408d`: 86 |
+| `cargo test --workspace` | CI `70fa4cd`: 88 pruebas, 0 fallos. Local: 88 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
@@ -50,7 +50,7 @@ Actualizado: 2026-11-17. M00-M07 parcial (DOM/WASM, async, lazy, Dynamic, Keyed,
 | Revisión Terra | 8 hallazgos; 6 aplicados, 2 diferidos en [review](reviews/2026-11-17-terra.md) |
 | Audit portátil de `teachers` | fmt + clippy + README + `expect` limpios; quedan 4 archivos >400 líneas (deuda documentada en [quality](quality.md)) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
-| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `528cb01`: [run 44119115634](https://github.com/jdsalasca/colibri/actions/runs/44119115634) / [run 44119115255](https://github.com/jdsalasca/colibri/actions/runs/44119115255) (validate + wasm + e2e) |
+| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `70fa4cd`: [run 44124353971](https://github.com/jdsalasca/colibri/actions/runs/44124353971) / [run 44124416847](https://github.com/jdsalasca/colibri/actions/runs/44124416847) (validate + wasm + e2e) |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |
 
