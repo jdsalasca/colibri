@@ -5,7 +5,7 @@ Actualizado: 2026-11-16. Los workflows de GitHub Actions asociados al commit `80
 ## Existente en la rama de fundación
 | Módulo | Implementado (limitado) | NO implementado |
 |---|---|---|
-| `colibri-core` | `Signal<T>` con suscripciones explícitas; `Scope` con callbacks de limpieza | autotracking, Memo, Effect, Scheduler, concurrencia, DOM |
+| `colibri-core` | `Signal<T>`/`Scope`; en PR #2 se añade tracking sincrónico, `use_state`, memo eager, effects, cleanup y batch (**verificar CI antes de declarar cerrado**) | scheduler browser/concurrente, tracking async, memo lazy, concurrencia, DOM |
 | `colibri-parser` | extracción lineal preliminar de bloques `script/template/style`; validación básica de lang | parser robusto de HTML, Rust y SCSS, spans, comentarios complejos, anidamiento |
 | `colibri-ir` | tipos preliminares `Component`/`Node`/`Attribute` | IR tipada, lowering, análisis semántico, grafo de dependencias |
 | `colibri-ssr` | escape HTML para subconjunto estático y rechazo de expresiones dinámicas | SSR dinámico, streaming, islas, hidratación |

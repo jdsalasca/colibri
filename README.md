@@ -20,7 +20,7 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 
 | Paquete | Estado | Función |
 |---|---|---|
-| `colibri-core` | Prototipo | `Signal<T>`, suscripciones y limpieza por `Scope` (notificación síncrona; sin seguimiento automático) |
+| `colibri-core` | Prototipo | `Signal<T>`, suscripciones y limpieza por `Scope`; PR #2 añade `use_state`, memo/effects y tracking sincrónico |
 | `colibri-parser` | Prototipo | Extrae y valida bloques básicos de archivos `.colibri` |
 | `colibri-ir` | Modelo inicial | Nodos compartidos para vistas estáticas y enlaces dinámicos |
 | `colibri-ssr` | Prototipo | Genera HTML seguro para nodos **estáticos** del IR |
@@ -84,3 +84,10 @@ El repositorio oficial es [jdsalasca/colibri](https://github.com/jdsalasca/colib
 ## Contribución y licencia
 
 Proyecto inicial. Antes de aceptar código de terceros o distribuir un framework público, decidir explícitamente licencia, política de contribuciones y política de seguridad. **No se ha elegido una licencia aún.** No copiar código de los frameworks estudiados sin revisar licencias, avisos y obligaciones.
+## Investigación Rust/WASM y API reactiva
+
+- [Estado y efectos (crates/colibri-core/README.md)](crates/colibri-core/README.md)
+- [Investigación sobre rendimiento en Rust web](docs/research/2026-11-rust-web-performance.md)
+- [Precedentes sobre reactividad](precedentes/reactivity-and-web-performance.md)
+
+Las nuevas APIs son experimentales y no prueban ventaja de rendimiento frente a otros frameworks.
