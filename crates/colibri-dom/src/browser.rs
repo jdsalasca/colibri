@@ -1,4 +1,5 @@
 use colibri_core::{use_effect, Effect};
+use colibri_ssr::validate_attribute;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::closure::Closure;
@@ -59,6 +60,16 @@ struct Listener {
     closure: Closure<dyn FnMut(Event)>,
 }
 
+fn clear_listeners(listeners: &mut Vec<Listener>) {
+    for listener in listeners.iter() {
+        let _ = listener.target.remove_event_listener_with_callback(
+            &listener.event,
+            listener.closure.as_ref().unchecked_ref(),
+        );
+    }
+    listeners.clear();
+}
+
 /// Handle that owns effects and listeners for a mounted view.
 pub struct MountHandle {
     container: Element,
@@ -76,13 +87,7 @@ impl MountHandle {
 
 impl Drop for MountHandle {
     fn drop(&mut self) {
-        for listener in &self.listeners {
-            let _ = listener.target.remove_event_listener_with_callback(
-                &listener.event,
-                listener.closure.as_ref().unchecked_ref(),
-            );
-        }
-        self.listeners.clear();
+        clear_listeners(&mut self.listeners);
         self.effects.clear();
         for root in &self.roots {
             if root.parent_node().as_ref() == Some(&self.container) {
@@ -138,18 +143,49 @@ impl MountState {
 
         let render = Rc::clone(render);
         let container = wrapper.clone();
-        let current: Rc<RefCell<Option<MountHandle>>> = Rc::new(RefCell::new(None));
+        let current: Rc<RefCell<Option<(MountHandle, Element)>>> = Rc::new(RefCell::new(None));
         let slot = Rc::clone(&current);
         let effect = use_effect(move || {
-            if let Some(handle) = slot.borrow_mut().take() {
-                handle.unmount();
+            let Some(document) = container.owner_document() else {
+                return;
+            };
+            let Ok(next) = document.create_element("div") else {
+                return;
+            };
+            let _ = next.set_attribute("data-colibri-dynamic", "");
+            let _ = next.set_attribute("style", "display: contents");
+            if container.append_child(&next).is_err() {
+                return;
             }
-            if let Ok(handle) = mount(View::Fragment(render()), container.clone()) {
-                *slot.borrow_mut() = Some(handle);
+            match mount(View::Fragment(render()), next.clone()) {
+                Ok(handle) => {
+                    if let Some((old, old_container)) = slot.borrow_mut().take() {
+                        old.unmount();
+                        let _ = container.remove_child(&old_container);
+                    }
+                    *slot.borrow_mut() = Some((handle, next));
+                }
+                Err(error) => {
+                    let _ = container.remove_child(&next);
+                    web_sys::console::error_1(&error);
+                }
             }
         });
         self.effects.push(effect);
         Ok(())
+    }
+
+    fn rollback(&mut self, container: &Element, roots_before: usize) {
+        clear_listeners(&mut self.listeners);
+        self.effects.clear();
+        let container_node: &Node = container.unchecked_ref();
+        let children = container_node.child_nodes();
+        while children.length() as usize > roots_before {
+            let Some(child) = children.item(roots_before as u32) else {
+                break;
+            };
+            let _ = container.remove_child(&child);
+        }
     }
 
     fn render_element(&mut self, view: &ElementView, parent: &Element) -> Result<(), JsValue> {
@@ -174,9 +210,11 @@ impl MountState {
     ) -> Result<(), JsValue> {
         match attribute {
             Attribute::Static { name, value } => {
+                validate_dom_attribute(name, Some(value))?;
                 element.set_attribute(name, value)?;
             }
             Attribute::Boolean { name } => {
+                validate_dom_attribute(name, None)?;
                 element.set_attribute(name, "")?;
             }
             Attribute::Dynamic { name, value } => {
@@ -184,7 +222,12 @@ impl MountState {
                 let name = name.clone();
                 let value = Rc::clone(value);
                 let effect = use_effect(move || {
-                    let _ = element.set_attribute(&name, &value());
+                    let next = value();
+                    if let Err(error) = validate_dom_attribute(&name, Some(&next)) {
+                        web_sys::console::error_1(&error);
+                        return;
+                    }
+                    let _ = element.set_attribute(&name, &next);
                 });
                 self.effects.push(effect);
             }
@@ -205,6 +248,11 @@ impl MountState {
     }
 }
 
+fn validate_dom_attribute(name: &str, value: Option<&str>) -> Result<(), JsValue> {
+    validate_attribute(name, value)
+        .map_err(|kind| JsValue::from_str(&format!("unsafe attribute `{name}`: {}", kind.as_str())))
+}
+
 /// Mount a view inside `container`. The returned handle owns effects/listeners.
 pub fn mount(view: View, container: Element) -> Result<MountHandle, JsValue> {
     let document = container
@@ -217,7 +265,10 @@ pub fn mount(view: View, container: Element) -> Result<MountHandle, JsValue> {
         effects: Vec::new(),
         listeners: Vec::new(),
     };
-    state.render_into(&view, &container)?;
+    if let Err(error) = state.render_into(&view, &container) {
+        state.rollback(&container, roots_before as usize);
+        return Err(error);
+    }
 
     let children = container_node.child_nodes();
     let roots = (roots_before..children.length())

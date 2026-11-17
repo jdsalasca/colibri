@@ -87,7 +87,7 @@ match manuals.get() {
 
 ## Lo que todavía no existe
 
-- **Reconciliación estructural**: la forma del árbol se fija al montar; listas/condicionales que cambian requieren remount o diff (pendiente).
+- **Reconciliación keyed**: `Dynamic` reconstruye el subárbol (sin diff/foco/estado local) y usa un wrapper `div`; falta reconciliación estable por identidad.
 - **SFC cliente**: `dom!` es la ruta Rust; `.colibri` aún no compila a WASM.
 - **Hidratación** SSR → cliente.
 - **Suspense/streaming**: `Resource` no suspende el render ni hace streaming.

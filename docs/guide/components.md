@@ -133,6 +133,29 @@ wasm-bindgen --target web --out-dir crates/colibri-dom/demo/pkg \
   target/wasm32-unknown-unknown/release/examples/counter.wasm
 ```
 
+### Listas y condicionales
+
+`<Dynamic nodes={closure}/>` reconstruye un subárbol cuando cambian las señales leídas:
+
+```rust
+let visible = use_state(true);
+let render = {
+    let visible = visible.clone();
+    move || {
+        if visible.get() {
+            vec![dom! { <p>"visible"</p> }]
+        } else {
+            Vec::new()
+        }
+    }
+};
+let view = dom! { <div><Dynamic nodes={render}/></div> };
+```
+
+Es reconciliación **coarse**: reconstruye el subárbol, no preserva foco/estado local y usa un wrapper `display: contents`. Para listas keyed estables hace falta una fase posterior.
+
+La validación de atributos/URL del DOM comparte política con SSR (`colibri_ssr::validate_attribute`).
+
 Demo completo: [`colibri-dom/demo`](../../crates/colibri-dom/demo/README.md).
 
 Dependencias del app:

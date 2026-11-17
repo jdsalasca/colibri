@@ -360,6 +360,9 @@ fn dynamic_tokens(element: &ViewElement, backend: Backend) -> Result<TokenStream
                 "Dynamic nodes must be a closure returning Vec<View>",
             ));
         };
+        if nodes.is_some() {
+            return Err(syn::Error::new(attribute.span, "duplicate nodes attribute"));
+        }
         nodes = Some(expression);
     }
     let nodes = nodes.ok_or_else(|| {
@@ -499,6 +502,9 @@ fn fragment_tokens(element: &ViewElement, backend: Backend) -> Result<TokenStrea
                 "Fragment nodes must be a {expression}",
             ));
         };
+        if nodes.is_some() {
+            return Err(syn::Error::new(attribute.span, "duplicate nodes attribute"));
+        }
         nodes = Some(expression);
     }
     match backend {

@@ -42,6 +42,7 @@ version = "0.0.1"
 dependencies = [
  "colibri-core",
  "colibri-macros",
+ "colibri-ssr",
  "gloo-timers",
  "wasm-bindgen",
  "wasm-bindgen-futures",

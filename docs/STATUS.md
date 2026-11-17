@@ -1,12 +1,12 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-16. M00–M07 parcial (DOM/WASM, async y lazy) pasaron CI en `9ede57a`: **83 pruebas**, build WASM y demo Chrome (`0→1`, doble `0→2`, `cargando → 42 manuales listos`, sin errores). ManualOps (Axum + Colibrí) sigue validado con 5 tests y HTTP real. No se ha probado rendimiento ni hidratación SSR.
+Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliación coarse) pasaron CI en `9ede57a` (83 pruebas). Con `Dynamic`, URL allowlist y rollback son **84 pruebas en local**, pendiente de CI. Terra revisó el framework y se aplicaron 5 de sus 8 hallazgos. Demo Chrome: `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, sin errores. No se ha probado rendimiento ni hidratación SSR.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
 |---|---|---|
 | `colibri-core` | `Signal<T>`, `Scope`; tracking sincrónico, `use_state`, `use_memo` eager, `use_effect`, `use_lazy`, `Resource`, cleanup, `batch`; ciclos recuperables con `take_error()`, `stats()` y `Scope::dispose` (M05) | browser scheduler, tracking async, memo lazy, concurrencia, DOM |
-| `colibri-dom` | runtime DOM/WASM: `View`, `dom!`, `mount`, bindings con effects, eventos, `use_async`/`Resource` y cleanup (M07 parcial) | reconciliación estructural, SFC cliente, hidratación, Suspense |
+| `colibri-dom` | runtime DOM/WASM: `View`, `dom!`, `mount`, bindings con effects, eventos, `use_async`/`Resource`, `Dynamic` coarse y cleanup (M07 parcial) | reconciliación keyed, SFC cliente, hidratación, Suspense |
 | `colibri-parser` | scanner SFC, AST con spans, atributos e interpolaciones; límites de tamaño/profundidad; lowering estático a IR (M01–M02) | validación integral de expresiones Rust, HTML5 completo, entidades, SCSS |
 | `colibri-ir` | IR con spans: texto, texto dinámico, elementos, fragmentos, atributos y eventos; lowering SFC→IR (M02) | componentes/calls, props, control de flujo, análisis de dependencias, codegen |
 | `colibri-codegen` | SFC → programa Rust con script, expresiones y atributos dinámicos; `build`/`eval` ejecutan con rustc (M06b) | control de flujo, componentes, eventos, SCSS, optimización |
@@ -27,7 +27,7 @@ Actualizado: 2026-11-16. M00–M07 parcial (DOM/WASM, async y lazy) pasaron CI e
 - No existe todavía evidencia de ventajas respecto a React, Solid, Svelte, Leptos o JS.
 - El pipeline estático no evalúa expresiones ni eventos y no decodifica entidades HTML de entrada (`&amp;` se trata como texto literal). Los comentarios HTML se descartan en lowering.
 - El SSR dinámico tiene dos vías: resolver del host (`render --bind`, [ADR 0007](adr/0007-dynamic-ssr-resolver.md)) y codegen Rust (`build`/`eval`, [ADR 0008](adr/0008-sfc-rust-codegen.md)). La segunda compila el script real con rustc, pero no es sandbox, no admite control de flujo/componentes/eventos/SCSS y los errores de tipo apuntan al Rust generado.
-- El runtime DOM/WASM (`dom!`) actualiza texto/atributos y eventos, pero la estructura es estática tras `mount`: no hay reconciliación para listas/condicionales ni hidratación SSR ([ADR 0011](adr/0011-dom-runtime-mvp.md)).
+- El runtime DOM/WASM (`dom!`) actualiza texto/atributos/eventos y `Dynamic` reconstruye listas/condicionales; la reconciliación es coarse (sin keyed/foco/estado local), usa un wrapper `display: contents` y no hay hidratación SSR ([ADR 0011](adr/0011-dom-runtime-mvp.md), [0013](adr/0013-dynamic-fragments.md)).
 - El audit portátil de `teachers` pasa; el baseline estricto (`missing_docs`, `unwrap_used`, cobertura 60%) sólo se aplica por ahora a `colibri-codegen`. Ver [calidad](quality.md).
 - La ruta Rust usa spans sintéticos (`file!()`, `0..0`) porque los proc macros estables no exponen offsets de byte; los errores de sintaxis sí apuntan al token real.
 
@@ -36,7 +36,7 @@ Actualizado: 2026-11-16. M00–M07 parcial (DOM/WASM, async y lazy) pasaron CI e
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | CI `9ede57a`: 83 pruebas, 0 fallos. Local: 83 |
+| `cargo test --workspace` | Local: 84 pruebas. CI `9ede57a`: 83 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
@@ -44,7 +44,9 @@ Actualizado: 2026-11-16. M00–M07 parcial (DOM/WASM, async y lazy) pasaron CI e
 | `cargo test -p colibri-ssr` | 12 pruebas: escape, URL allowlist, dinámicos, meta/link seguros y rechazos |
 | `cargo test -p colibri-macros` | Componentes, props tipadas, composición, children y `Option`/null safety (M03b) |
 | Build WASM + wasm-bindgen | CI `f2ff960` compila `wasm32-unknown-unknown`; demo local con wasm-bindgen |
-| Chrome/Playwright | Contador: `0 → 1`, `doble 0 → 2`, `cargando → 42 manuales listos`, sin errores; captura `counter.png` |
+| Chrome/Playwright | Contador `0→1`, doble `0→2`, async `42 manuales`, condicional `1→0→1`; sin errores; `counter.png` |
+| Seguridad DOM/SSR | `validate_attribute` compartido; allowlist `http/https/mailto/tel/relativas`; pruebas de `ftp`/`data`/`file`/`javascript` |
+| Revisión Terra | 8 hallazgos; 5 aplicados, 3 diferidos en [review](reviews/2026-11-17-terra.md) |
 | Audit portátil de `teachers` | fmt + clippy + README + `expect` limpios; quedan 4 archivos >400 líneas (deuda documentada en [quality](quality.md)) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
 | CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `9ede57a`: [run 44002475900](https://github.com/jdsalasca/colibri/actions/runs/44002475900) / [run 44002475523](https://github.com/jdsalasca/colibri/actions/runs/44002475523) (validate + wasm) |
@@ -79,9 +81,9 @@ Dashboard de manuales internos con Axum + componentes Colibrí, sin JavaScript:
 
 ## Avance M07 — runtime DOM/WASM
 
-`colibri-dom` (wasm32) monta un `View` en el DOM, actualiza texto/atributos con effects y registra eventos con `Closure`. `#[component]` funciona con retorno `View` y children vía `Fragment`. `use_async` añade `Resource<T>` (`Loading/Ready/Failed`) con `spawn_local`; `use_lazy` cachea un cálculo al primer acceso. El demo usa `use_state`, `use_memo`, `use_async`, un componente `Panel` y `on:click`; en Chrome real: `0→1`, `doble 0→2`, `cargando → 42 manuales listos`, sin errores. Ver [ADR 0011](adr/0011-dom-runtime-mvp.md) y [0012](adr/0012-async-resource-lazy.md).
+`colibri-dom` (wasm32) monta un `View` en el DOM, actualiza texto/atributos con effects y registra eventos con `Closure`. `#[component]` funciona con retorno `View` y children vía `Fragment`. `use_async` añade `Resource<T>`; `use_lazy` cachea un cálculo; `<Dynamic nodes={closure}/>` reconstruye listas/condicionales de forma transaccional. El demo usa `use_state`, `use_memo`, `use_async`, `Dynamic`, un componente `Panel` y `on:click`; en Chrome: `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, sin errores. Ver [ADR 0011](adr/0011-dom-runtime-mvp.md), [0012](adr/0012-async-resource-lazy.md), [0013](adr/0013-dynamic-fragments.md) y [revisión Terra](reviews/2026-11-17-terra.md).
 
-Pendiente: reconciliación estructural, SFC cliente, hidratación, Suspense/streaming, cancelación de futures, tests E2E en CI y medición JS↔WASM.
+Pendiente: reconciliación keyed, ownership de effects por componente, cancelación de futures, SFC cliente, hidratación, Suspense/streaming, E2E en CI y medición JS↔WASM.
 
 ### Entrega entre agentes
 

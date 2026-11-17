@@ -272,31 +272,8 @@ fn render_named_attribute(
     span: &SourceSpan,
     output: &mut String,
 ) -> Result<(), RenderError> {
-    let lower = name.to_ascii_lowercase();
-    if !valid_name(name) {
-        return Err(RenderError::new(RenderErrorKind::InvalidAttribute, span));
-    }
-    if lower.starts_with("on") || lower == "srcdoc" || lower == "style" {
-        return Err(RenderError::new(RenderErrorKind::UnsafeAttribute, span));
-    }
-
+    validate_attribute(name, value).map_err(|kind| RenderError::new(kind, span))?;
     if let Some(value) = value {
-        if matches!(
-            lower.as_str(),
-            "href" | "src" | "action" | "formaction" | "xlink:href"
-        ) {
-            let normalized: String = value
-                .chars()
-                .filter(|ch| !ch.is_ascii_whitespace() && !ch.is_ascii_control())
-                .flat_map(char::to_lowercase)
-                .collect();
-            if ["javascript:", "vbscript:", "data:"]
-                .iter()
-                .any(|prefix| normalized.starts_with(prefix))
-            {
-                return Err(RenderError::new(RenderErrorKind::UnsafeAttribute, span));
-            }
-        }
         output.push(' ');
         output.push_str(name);
         output.push_str("=\"");
@@ -307,6 +284,53 @@ fn render_named_attribute(
         output.push_str(name);
     }
     Ok(())
+}
+
+/// Validate an attribute with the policy shared by SSR and the DOM runtime.
+///
+/// Rejects `on*`, `srcdoc`, `style`, invalid names and URLs outside the
+/// allowlist (`http`, `https`, `mailto`, `tel`, relative).
+pub fn validate_attribute(name: &str, value: Option<&str>) -> Result<(), RenderErrorKind> {
+    let lower = name.to_ascii_lowercase();
+    if !valid_name(name) {
+        return Err(RenderErrorKind::InvalidAttribute);
+    }
+    if lower.starts_with("on") || lower == "srcdoc" || lower == "style" {
+        return Err(RenderErrorKind::UnsafeAttribute);
+    }
+    if let Some(value) = value {
+        if matches!(
+            lower.as_str(),
+            "href" | "src" | "action" | "formaction" | "xlink:href"
+        ) && !is_safe_url(value)
+        {
+            return Err(RenderErrorKind::UnsafeAttribute);
+        }
+    }
+    Ok(())
+}
+
+fn is_safe_url(value: &str) -> bool {
+    let normalized: String = value
+        .chars()
+        .filter(|ch| !ch.is_ascii_whitespace() && !ch.is_ascii_control())
+        .collect();
+    if normalized.is_empty()
+        || normalized.starts_with('#')
+        || normalized.starts_with('/')
+        || normalized.starts_with('?')
+        || normalized.starts_with("./")
+        || normalized.starts_with("../")
+    {
+        return true;
+    }
+    match normalized.find(':') {
+        None => true,
+        Some(index) => {
+            let scheme = normalized[..index].to_ascii_lowercase();
+            matches!(scheme.as_str(), "http" | "https" | "mailto" | "tel")
+        }
+    }
 }
 
 /// Render a static IR tree as safe HTML. Dynamic nodes are rejected.
@@ -453,6 +477,36 @@ mod tests {
             render_static(&void).unwrap_err().kind,
             RenderErrorKind::InvalidVoidElement
         );
+    }
+
+    #[test]
+    fn allows_relative_and_known_schemes() {
+        for value in [
+            "/docs",
+            "./docs",
+            "../docs",
+            "#top",
+            "?q=1",
+            "https://example.com",
+            "mailto:team@example.com",
+            "tel:+123",
+        ] {
+            let node = element("a", vec![static_attribute("href", value)], vec![]);
+            assert!(render_static(&node).is_ok(), "{value}");
+        }
+        for value in [
+            "ftp://example.com",
+            "javascript:alert(1)",
+            "data:text/html,x",
+            "file:///etc/passwd",
+        ] {
+            let node = element("a", vec![static_attribute("href", value)], vec![]);
+            assert_eq!(
+                render_static(&node).unwrap_err().kind,
+                RenderErrorKind::UnsafeAttribute,
+                "{value}"
+            );
+        }
     }
 
     #[test]
