@@ -1,0 +1,20 @@
+[package]
+name = "colibri-macros"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }
+
+[dev-dependencies]
+colibri-ir = { path = "../colibri-ir" }
+colibri-parser = { path = "../colibri-parser" }
+colibri-ssr = { path = "../colibri-ssr" }
+
+[lints]
+workspace = true

@@ -1,6 +1,6 @@
 # Contrato común de componentes — Rust y SFC
 
-**Estado:** propuesta para diseño/implementación; macros todavía inexistentes.
+**Estado:** `view!` estático implementado en `colibri-macros` (M03); `#[component]`, props, children, eventos y estado siguen en diseño.
 
 ## Objetivo central
 Un componente con la misma interfaz tiene idéntico contrato de props, children, eventos, estado, lifecycle e identidad si se define en `Counter.rs` o en `Counter.colibri`. Los backends pueden emitir artefactos distintos, pero no cambiar el comportamiento observable.
@@ -33,6 +33,13 @@ El SFC equivalente declara props tipadas y usa `<template>`. La convención exac
 | Atributos | Normalizar camelCase/hyphen según HTML y definir props de componentes explícitamente |
 | Fallos | No panicar por entradas externas; distinguir compile error, render error y runtime failure |
 | Asíncrono | Cancelación o invalidación al desmontar y ante respuestas tardías |
+
+## Implementado hoy (M03)
+```rust
+use colibri_macros::view;
+let node = view! { <article class="card" hidden><h1>"Título"</h1></article> };
+```
+La raíz es `Node::Fragment` y contiene sólo elementos, texto literal, atributos estáticos y booleanos. `{expr}`, `on:evento` y namespaces fallan en compilación. No existe `#[component]` ni resolución de componentes: un tag con mayúsculas llega al IR y `colibri-ssr` lo rechaza como no resuelto.
 
 ## Prioridad de implementación
 1. Renderizar texto + elementos + componentes anidados estáticos.

@@ -27,14 +27,15 @@ Rust component (.rs)          Colibrí SFC (.colibri)
 | Crate | Propósito | Puede depender de | Nunca debe depender de |
 |---|---|---|---|
 | `colibri-ir` | modelo semántico / vistas | biblioteca estándar inicialmente | core, DOM, browser, Vite |
-| `colibri-parser` | SFC, templates, posiciones | ir en lowering futuro; bibliotecas de parser cuando se justifiquen | DOM, SSR |
+| `colibri-parser` | SFC, templates, posiciones | ir; bibliotecas de parser cuando se justifiquen | DOM, SSR |
+| `colibri-macros` | macro `view!` estática a IR | syn/quote en build-time; contrato IR generado | parser, DOM, browser, runtime |
 | `colibri-core` | señales, scopes, scheduler | std, abstractions explicit | parser, Vite, DOM |
 | `colibri-ssr` | render seguro y streaming futuro | ir, core cuando SSR dinámico llegue | Vite, browser bindings |
 | `colibri-cli` | herramientas orquestadoras | parser, codegen, Cargo, sistemas de build | client runtime |
 | `vite-plugin-colibri` | integración JS/TS sólo de desarrollo | Vite, puentes a CLI | core runtime |
 
 ## Paquetes planificados, NO crear sin tarea/ADR
-`colibri-macros` (proc macros), `colibri-codegen` (IR a Rust), `colibri-dom` (adaptador WASM/browser), `colibri-router` (rutas), `colibri-test` (harness). Paquetes separados sólo cuando exista un contrato y caso funcional que justifique la división.
+`colibri-codegen` (IR a Rust), `colibri-dom` (adaptador WASM/browser), `colibri-router` (rutas), `colibri-test` (harness). Paquetes separados sólo cuando exista un contrato y caso funcional que justifique la división.
 
 ## Flujos compilación
 1. Leer el SFC y extraer bloques conservando offsets y ubicaciones. Nunca interpretar código Rust con expresiones regulares.
