@@ -9,11 +9,46 @@ use crate::{Scope, Signal};
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::collections::{HashSet, VecDeque};
+use std::error::Error;
+use std::fmt;
 use std::rc::{Rc, Weak};
 
 const MAX_FLUSH_RUNS: usize = 4096;
 type Cleanup = Box<dyn FnOnce()>;
 type CleanupSlot = Rc<RefCell<Option<Cleanup>>>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReactiveError {
+    CycleLimit { runs: usize },
+}
+
+impl fmt::Display for ReactiveError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::CycleLimit { runs } => write!(
+                f,
+                "reactive cycle exceeded {MAX_FLUSH_RUNS} runs ({runs} executed)"
+            ),
+        }
+    }
+}
+
+impl Error for ReactiveError {}
+
+/// Take the last reactive error recorded on this thread.
+///
+/// The runtime stops a cycle instead of panicking; callers that care about
+/// diagnostics should check this after updates.
+pub fn take_error() -> Option<ReactiveError> {
+    LAST_ERROR.with(|slot| slot.borrow_mut().take())
+}
+
+pub(crate) fn queued_tasks() -> usize {
+    ENGINE.with(|engine| {
+        let engine = engine.borrow();
+        engine.memos.len() + engine.effects.len()
+    })
+}
 
 #[derive(Clone, Copy)]
 enum Kind {
@@ -42,6 +77,7 @@ thread_local! {
     static ENGINE: RefCell<Engine> = RefCell::new(Engine::default());
     static ACTIVE: Cell<usize> = const { Cell::new(0) };
     static TRACKING: RefCell<Vec<Weak<Observer>>> = const { RefCell::new(Vec::new()) };
+    static LAST_ERROR: RefCell<Option<ReactiveError>> = const { RefCell::new(None) };
 }
 
 struct HoldGuard;
@@ -168,12 +204,32 @@ fn flush() {
             continue;
         }
         runs += 1;
-        assert!(
-            runs <= MAX_FLUSH_RUNS,
-            "Colibri reactive cycle exceeded {MAX_FLUSH_RUNS} runs"
-        );
+        if runs > MAX_FLUSH_RUNS {
+            LAST_ERROR.with(|slot| {
+                *slot.borrow_mut() = Some(ReactiveError::CycleLimit { runs });
+            });
+            reset_queued();
+            break;
+        }
         execute(&observer);
     }
+}
+
+fn reset_queued() {
+    ENGINE.with(|cell| {
+        let (memos, effects) = {
+            let mut engine = cell.borrow_mut();
+            (
+                std::mem::take(&mut engine.memos),
+                std::mem::take(&mut engine.effects),
+            )
+        };
+        for weak in memos.into_iter().chain(effects) {
+            if let Some(observer) = weak.upgrade() {
+                observer.queued.set(false);
+            }
+        }
+    });
 }
 
 fn execute(observer: &Rc<Observer>) {
@@ -232,10 +288,12 @@ impl Drop for Effect {
                 untrack(f);
             }
         }
+        crate::observer_dropped();
     }
 }
 
 fn create_observer(kind: Kind, callback: impl FnMut() + 'static) -> Rc<Observer> {
+    crate::observer_created();
     Rc::new(Observer {
         kind,
         callback: RefCell::new(Box::new(callback)),
@@ -547,5 +605,94 @@ mod tests {
         };
         assert_eq!(signal.get(), 3);
         drop(effect);
+    }
+
+    #[test]
+    fn reactive_cycles_record_an_error_and_the_queue_recovers() {
+        let _ = take_error();
+        let left = use_state(0);
+        let right = use_state(0);
+        let first = {
+            let left = left.clone();
+            let right = right.clone();
+            use_effect(move || {
+                let value = left.get();
+                if value > 0 {
+                    right.set(value);
+                }
+            })
+        };
+        let second = {
+            let right = right.clone();
+            let left = left.clone();
+            use_effect(move || {
+                let value = right.get();
+                if value > 0 {
+                    left.set(value);
+                }
+            })
+        };
+
+        left.set(1);
+        assert!(matches!(
+            take_error(),
+            Some(ReactiveError::CycleLimit { .. })
+        ));
+        drop(first);
+        drop(second);
+
+        let signal = use_state(0);
+        let runs = Rc::new(Cell::new(0));
+        let effect = {
+            let signal = signal.clone();
+            let runs = runs.clone();
+            use_effect(move || {
+                signal.get();
+                runs.set(runs.get() + 1);
+            })
+        };
+        signal.set(1);
+        assert_eq!(runs.get(), 2);
+        assert!(take_error().is_none());
+        drop(effect);
+    }
+
+    #[test]
+    fn ten_thousand_mixed_cycles_leave_no_residuals() {
+        let baseline = crate::stats();
+        for _ in 0..10_000 {
+            let signal = use_state(0);
+            let memo = {
+                let signal = signal.clone();
+                use_memo(move || signal.get() * 2)
+            };
+            let effect = {
+                let memo = memo.clone();
+                use_effect(move || {
+                    memo.get();
+                })
+            };
+            signal.set(1);
+            assert_eq!(memo.get(), 2);
+            drop(effect);
+            drop(memo);
+            drop(signal);
+        }
+        assert_eq!(crate::stats(), baseline);
+    }
+
+    #[test]
+    fn scope_dispose_is_lifo_and_idempotent() {
+        let events = Rc::new(RefCell::new(Vec::new()));
+        let mut scope = Scope::new();
+        let first = events.clone();
+        scope.on_cleanup(move || first.borrow_mut().push("first"));
+        let second = events.clone();
+        scope.on_cleanup(move || second.borrow_mut().push("second"));
+
+        scope.dispose();
+        assert_eq!(*events.borrow(), vec!["second", "first"]);
+        scope.dispose();
+        assert_eq!(*events.borrow(), vec!["second", "first"]);
     }
 }

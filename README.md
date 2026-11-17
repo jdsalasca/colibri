@@ -20,7 +20,7 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 
 | Paquete | Estado | Función |
 |---|---|---|
-| `colibri-core` | Prototipo | Signals, scopes y un motor experimental con `use_state`, `use_memo`, `use_effect` y `batch` (sin browser/async todavía) |
+| `colibri-core` | Prototipo | Signals, scopes y motor con `use_state`, `use_memo`, `use_effect`, `batch`, ciclos recuperables (`take_error`), `stats()` y `Scope::dispose` (sin browser/async todavía) |
 | `colibri-parser` | Prototipo | Scanner SFC y AST de template con spans (M01); no compila |
 | `colibri-ir` | Prototipo | IR semántica con spans y lowering SFC→IR (M02) |
 | `colibri-macros` | Prototipo | `view!` estático a IR; dinámico/eventos fallan en compilación (M03) |
@@ -59,7 +59,7 @@ cargo run -p colibri-cli -- render examples/static-card.colibri
 
 ```text
 crates/
-  colibri-core/       Estado, suscripciones, ownership básico
+  colibri-core/       Signals, memo, effects, scheduler y scopes
   colibri-ir/         Modelo de representación de componentes
   colibri-macros/     Macro proc `view!` para la ruta Rust
   colibri-parser/     Lectura de componentes de archivo único
@@ -104,7 +104,7 @@ El repositorio oficial es [jdsalasca/colibri](https://github.com/jdsalasca/colib
 Proyecto inicial. Antes de aceptar código de terceros o distribuir un framework público, decidir explícitamente licencia, política de contribuciones y política de seguridad. **No se ha elegido una licencia aún.** No copiar código de los frameworks estudiados sin revisar licencias, avisos y obligaciones.
 ## Investigación y motor reactivo
 
-- [API experimental del core](crates/colibri-core/README.md): `use_state`, `use_memo`, `use_effect`, cleanup, `batch` y límites.
+- [API experimental del core](crates/colibri-core/README.md): `use_state`, `use_memo`, `use_effect`, cleanup, `batch`, `take_error()` y `stats()`.
 - [Investigación sobre rendimiento web Rust/WASM](docs/research/2026-11-rust-web-performance.md): fuentes primarias, hipótesis falsables y diseño de benchmarks.
 - [Precedentes reactivos](precedentes/reactivity-and-web-performance.md): React, Solid, Svelte, Leptos, Dioxus y otros.
 

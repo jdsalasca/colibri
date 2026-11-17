@@ -1,11 +1,11 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-16. M00–M04 y el prototipo reactivo parcial M05 se validaron conjuntamente en GitHub Actions para el PR #3 (commit `5dadebd45d619aaeb73f4fd840c8a51bcbdf655d`). [CI run](https://github.com/jdsalasca/colibri/actions/runs/43989925541): formato estricto, Clippy, **55 pruebas Rust** (0 fallidas) y check estructural SFC aprobados. No se ha probado navegador ni rendimiento comparativo.
+Actualizado: 2026-11-16. M00–M04 y M05 se validaron en GitHub Actions para el PR #3 (commit `5dadebd45d619aaeb73f4fd840c8a51bcbdf655d`) con **55 pruebas**. Sobre esa base se añadió el endurecimiento M05 (ciclos recuperables, `stats()`, `Scope::dispose`): **58 pruebas en local**, pendiente de CI para el nuevo commit. No se ha probado navegador ni rendimiento comparativo.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
 |---|---|---|
-| `colibri-core` | `Signal<T>`, `Scope`; en la integración M05: tracking sincrónico, `use_state`, `use_memo` eager, `use_effect`, cleanup y `batch` (**prototipo**) | browser scheduler, tracking async, memo lazy, concurrencia, DOM |
+| `colibri-core` | `Signal<T>`, `Scope`; tracking sincrónico, `use_state`, `use_memo` eager, `use_effect`, cleanup, `batch`; ciclos recuperables con `take_error()`, `stats()` y `Scope::dispose` (M05) | browser scheduler, tracking async, memo lazy, concurrencia, DOM |
 | `colibri-parser` | scanner SFC, AST con spans, atributos e interpolaciones; límites de tamaño/profundidad; lowering estático a IR (M01–M02) | validación integral de expresiones Rust, HTML5 completo, entidades, SCSS |
 | `colibri-ir` | IR con spans: texto, texto dinámico, elementos, fragmentos, atributos y eventos; lowering SFC→IR (M02) | componentes/calls, props, control de flujo, análisis de dependencias, codegen |
 | `colibri-ssr` | render estático seguro desde IR; booleanos, void, allowlist de URLs y errores con span (M02) | SSR dinámico, streaming, islas, hidratación |
@@ -17,7 +17,8 @@ Actualizado: 2026-11-16. M00–M04 y el prototipo reactivo parcial M05 se valida
 ## Limitaciones y riesgos conocidos
 - El parser actual busca cierres de etiquetas de forma simple: no es seguro para HTML arbitrario ni etiquetas embebidas, comentarios complejos o bloques Rust que incluyan textos coincidentes.
 - El renderer está deliberadamente restringido. No ampliar tags/atributos sin revisar XSS, URL schemes, atributos booleanos y reglas HTML/ARIA.
-- El núcleo reactivo nuevo usa reactividad síncrona con cola de memos antes de effects y límite de ejecuciones por ciclo. Suscripciones manuales todavía son síncronas; reentrancia, posibles ciclos y orden deben probarse en casos complejos. Los memos son eager y no existe scheduler del navegador.
+- El núcleo reactivo usa reactividad síncrona con cola de memos antes de effects. Los ciclos se cortan tras 4.096 ejecuciones y dejan un `ReactiveError::CycleLimit` recuperable con `take_error()`; no hay panic automático. Los memos son eager y no existe scheduler del navegador.
+- `stats()` es instrumentación thread-local para tests; no es un perfil de memoria ni una métrica de producción.
 - CI del PR #3 comprobado con 55 tests y checks de formato/Clippy; cualquier commit futuro debe volver a pasar los checks.
 - Los archivos de ejemplo `Counter.rs` y `Counter.colibri` son **sintaxis objetivo**, no una implementación compilable.
 - No existe todavía evidencia de ventajas respecto a React, Solid, Svelte, Leptos o JS.
@@ -29,11 +30,11 @@ Actualizado: 2026-11-16. M00–M04 y el prototipo reactivo parcial M05 se valida
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | Pasa en CI: 55 pruebas, 0 fallos, incluidas 10 de core (M05 parcial) |
+| `cargo test --workspace` | Local: 58 pruebas (13 core). CI del PR #3: 55 pruebas |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
-| CI de GitHub con `--check` | **Verificado**: [run 43989925541](https://github.com/jdsalasca/colibri/actions/runs/43989925541) |
+| CI de GitHub con `--check` | Verificado para `5dadebd` ([run 43989925541](https://github.com/jdsalasca/colibri/actions/runs/43989925541)); commit de endurecimiento M05 pendiente |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |
 
@@ -41,7 +42,7 @@ Actualizar **únicamente** con resultados y enlaces al commit/CI. La sección es
 
 ## Avance M05 — motor reactivo experimental
 
-Se integra un subsistema de estado/derivaciones/efectos independiente del navegador, con pruebas de tracking dinámico, igualdad de Memo, batch, cleanup y 10.000 scopes. **No cerrar M05:** falta validar manejo seguro de ciclos/pánicos, reconciliación con el DOM, memory profiling y benchmark nativo/WASM.
+Se integra un subsistema de estado/derivaciones/efectos independiente del navegador, con pruebas de tracking dinámico, igualdad de Memo, batch, cleanup, 10.000 scopes y 10.000 ciclos signal+memo+effect. El contrato de M05 queda cubierto, incluidos ciclos recuperables (`take_error`), `stats()` y `Scope::dispose`. **No cerrar el ecosistema:** quedan riesgos de M07/M10 (reconciliación DOM, panic boundary, memoria por suscripción, benchmark WASM/Chromium).
 
 Investigación: [Rust web performance](research/2026-11-rust-web-performance.md); [comparación de precedentes](../precedentes/reactivity-and-web-performance.md). Las cifras de rendimiento aún no existen.
 

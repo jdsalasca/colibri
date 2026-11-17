@@ -31,16 +31,18 @@ drop(scope); // unregister
 - `use_effect` se ejecuta inmediatamente y observa señales leídas **sincrónicamente**. La suscripción dura mientras viva el handle `Effect`.
 - `use_effect_with_cleanup` devuelve una función de cleanup, ejecutada antes del siguiente run y al soltar Effect.
 - `batch` agrupa cambios para deduplicar efectos; subscribers manuales aún son síncronos.
-- `Scope::track_effect` administra lifetime y desuscribe al desmontar.
+- `Scope::track_effect` administra lifetime y desuscribe al desmontar; `Scope::dispose` ejecuta cleanups LIFO y `Scope::own` apropia cualquier valor.
+- `take_error()` devuelve `ReactiveError::CycleLimit` si un ciclo superó 4.096 ejecuciones; el motor vacía la cola y sigue usable.
+- `stats()` expone señales, suscripciones, observadores y tareas en cola por hilo (instrumentación de tests).
 
 ## Lo que no existe todavía
 - Un backend navegador, DOM o hidratación, scheduler concurrente, tracking async, efecto post-paint o React-like rerender.
-- Valores derivados lazy, comparación custom, estados thread-safe, manejo refinado de ciclos, transacciones atómicas, profiling.
+- Valores derivados lazy, comparación custom, estados thread-safe, panic boundary para código de usuario, transacciones atómicas, profiling.
 - Las APIs no garantizan rendimiento superior a Solid o Leptos.
 
 ## Riesgos que investigar
 - `use_memo` es eager: evaluaciones innecesarias si no hay lectores.
-- Writes dentro de effects: pueden producir ciclos; hay límite de ejecuciones y se necesita futura API de error recuperable.
+- Writes dentro de effects: pueden producir ciclos; el motor corta a 4.096 ejecuciones y reporta `CycleLimit`, pero el grafo sigue suscrito hasta corregirlo.
 - `get()` clona `T`; para estructuras grandes usar `with()` o explorar políticas de acceso con benchmarks.
 - Se hace tracking automático sólo en reads sincrónicos, no a través de operaciones async.
 - Cada dependencia está representada por un observer/subscription que puede consumir memoria.
@@ -50,6 +52,7 @@ drop(scope); // unregister
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo test -p colibri-core
 cargo run -p colibri-core --example reactive_basics
 ~~~
 

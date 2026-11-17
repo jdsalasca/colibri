@@ -3,7 +3,8 @@
 //! Browser rendering, async tracking and hydration are still unimplemented.
 mod reactive;
 pub use reactive::{
-    batch, untrack, use_effect, use_effect_with_cleanup, use_memo, use_state, Effect, Memo,
+    batch, take_error, untrack, use_effect, use_effect_with_cleanup, use_memo, use_state, Effect,
+    Memo, ReactiveError,
 };
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
@@ -11,10 +12,80 @@ use std::rc::{Rc, Weak};
 
 type Watcher = Rc<dyn Fn()>;
 
+/// Snapshot of the thread-local reactive counters.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RuntimeStats {
+    pub signals: usize,
+    pub subscriptions: usize,
+    pub observers: usize,
+    pub queued: usize,
+}
+
+pub fn stats() -> RuntimeStats {
+    STATS.with(|stats| RuntimeStats {
+        signals: stats.signals.get(),
+        subscriptions: stats.subscriptions.get(),
+        observers: stats.observers.get(),
+        queued: reactive::queued_tasks(),
+    })
+}
+
+#[derive(Default)]
+struct Stats {
+    signals: Cell<usize>,
+    subscriptions: Cell<usize>,
+    observers: Cell<usize>,
+}
+
+thread_local! {
+    static STATS: Stats = Stats::default();
+}
+
+fn increment(cell: &Cell<usize>) {
+    cell.set(cell.get() + 1);
+}
+
+fn decrement(cell: &Cell<usize>, amount: usize) {
+    cell.set(cell.get().saturating_sub(amount));
+}
+
+fn signal_created() {
+    STATS.with(|stats| increment(&stats.signals));
+}
+
+fn signal_dropped(subscriptions: usize) {
+    STATS.with(|stats| {
+        decrement(&stats.signals, 1);
+        decrement(&stats.subscriptions, subscriptions);
+    });
+}
+
+fn subscription_created() {
+    STATS.with(|stats| increment(&stats.subscriptions));
+}
+
+fn subscription_dropped() {
+    STATS.with(|stats| decrement(&stats.subscriptions, 1));
+}
+
+pub(crate) fn observer_created() {
+    STATS.with(|stats| increment(&stats.observers));
+}
+
+pub(crate) fn observer_dropped() {
+    STATS.with(|stats| decrement(&stats.observers, 1));
+}
+
 struct Inner<T> {
     value: RefCell<T>,
     watchers: RefCell<BTreeMap<usize, Watcher>>,
     next_id: Cell<usize>,
+}
+
+impl<T> Drop for Inner<T> {
+    fn drop(&mut self) {
+        signal_dropped(self.watchers.borrow().len());
+    }
 }
 
 /// A value with explicitly registered observers.
@@ -33,6 +104,7 @@ impl<T> Clone for Signal<T> {
 
 impl<T: 'static> Signal<T> {
     pub fn new(value: T) -> Self {
+        signal_created();
         Self {
             inner: Rc::new(Inner {
                 value: RefCell::new(value),
@@ -91,6 +163,7 @@ impl<T: 'static> Signal<T> {
         self.inner
             .next_id
             .set(id.checked_add(1).expect("subscriber id exhausted"));
+        subscription_created();
         self.inner
             .watchers
             .borrow_mut()
@@ -111,7 +184,9 @@ impl<T> Drop for Subscription<T> {
     fn drop(&mut self) {
         if let Some(inner) = self.inner.upgrade() {
             self.inner = Weak::new();
-            inner.watchers.borrow_mut().remove(&self.id);
+            if inner.watchers.borrow_mut().remove(&self.id).is_some() {
+                subscription_dropped();
+            }
         }
     }
 }
@@ -132,15 +207,25 @@ impl Scope {
     }
 
     pub fn track<T: 'static>(&mut self, subscription: Subscription<T>) {
-        self.on_cleanup(move || drop(subscription));
+        self.own(subscription);
+    }
+
+    /// Own any value and drop it when the scope is disposed.
+    pub fn own<T: 'static>(&mut self, value: T) {
+        self.on_cleanup(move || drop(value));
+    }
+
+    /// Run cleanups now. Idempotent; `Drop` calls it again with an empty list.
+    pub fn dispose(&mut self) {
+        while let Some(callback) = self.cleanups.pop() {
+            callback();
+        }
     }
 }
 
 impl Drop for Scope {
     fn drop(&mut self) {
-        while let Some(callback) = self.cleanups.pop() {
-            callback();
-        }
+        self.dispose();
     }
 }
 

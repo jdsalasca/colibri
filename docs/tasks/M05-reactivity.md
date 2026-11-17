@@ -17,11 +17,11 @@ Evolucionar el prototipo de `Signal<T>` y `Scope` hacia semántica determinista,
 No construir VDOM, DOM bindings, arquitectura multi-thread Wasm o optimizaciones de memoria sin medidas y pruebas.
 
 ## Aceptación
-- [ ] Tests de reentrancia, unsubscribe durante callback y fuga de referencias pasan.
-- [ ] Branch switching limpia dependencias antiguas.
-- [ ] Invalidación de memo/effect no observa valores inconsistentes.
-- [ ] 10.000 ciclos mount/update/unmount quedan sin observers residuales.
-- [ ] Núcleo sigue sin depender de web-sys/wasm-bindgen/Vite.
+- [x] Tests de reentrancia, unsubscribe durante callback y fuga de referencias pasan.
+- [x] Branch switching limpia dependencias antiguas.
+- [x] Invalidación de memo/effect no observa valores inconsistentes.
+- [x] 10.000 ciclos mount/update/unmount quedan sin observers residuales.
+- [x] Núcleo sigue sin depender de web-sys/wasm-bindgen/Vite.
 
 ## Handoff
 Semántica de orden y batching escrita, benchmark de overhead de suscripción y riesgos para el adaptador M07.
@@ -31,3 +31,15 @@ Semántica de orden y batching escrita, benchmark de overhead de suscripción y 
 Implementación experimental aislada: `use_state`, `use_memo` eager con `PartialEq`, `use_effect` sincrónico, cleanup, batching, branch-sensitive dependency tracking, cola con memos antes que effects, pruebas unitarias. **No marcar M05 finalizado**: falta revisión profunda de reentrancia, recuperación de pánicos/ciclos, scheduler browser, evaluación de costes memoria y APIs estables. 
 
 Investigación: [Rust/WASM performance](../research/2026-11-rust-web-performance.md).
+
+## Cierre contractual (2026-11-16)
+
+Los cinco criterios de aceptación quedan cubiertos con 13 pruebas de `colibri-core` y 58 de workspace:
+
+- Ciclos: `MAX_FLUSH_RUNS = 4.096`, `ReactiveError::CycleLimit`, `take_error()` y recuperación de la cola.
+- Residuos: 10.000 ciclos de scope/effect y 10.000 ciclos signal+memo+effect con `stats()` de vuelta al baseline.
+- Reentrancia: escritura desde effect encolada; ciclo real probado sin panic.
+- Cleanup: LIFO en re-run/drop y `Scope::dispose` idempotente.
+- Sin dependencias de navegador: sólo `std`.
+
+Quedan riesgos fuera de M05: reconciliación DOM, panic boundary de código de usuario, memoria por suscripción medida con profiler y benchmark nativo/WASM (M07/M10, issue #4).

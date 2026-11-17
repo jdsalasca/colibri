@@ -5,9 +5,9 @@
 | Sintaxis props de SFC | bloque Rust tipado / export macro / declaraciones en template | M03–M04 |
 | Modelo de template expressions | Rust puro / DSL restringida | M02 |
 | Identidad estable de componentes | keys explícitas y gen IDs / tree path | M04–M07 |
-| Política de reentrancia de Signal | cola determinista / error ciclos / recursion bound | M05 |
-| Memo equality | siempre invalidate / comparador opcional | M05 |
-| Modelo de fallos de Effect | error tipado / policy de panic boundary | M05 |
+| Política de reentrancia de Signal | cola determinista + límite de 4.096 + `take_error()` | **Decidida:** ADR 0006 |
+| Memo equality | `PartialEq`, omitir notificación si no cambia | **Decidida:** ADR 0006 |
+| Modelo de fallos de Effect | error tipado / policy de panic boundary | M07 |
 | Surface de HTML seguro | escape exclusivo / SafeHtml auditado | M06 |
 | URL allowlist | lista por atributo/namespace y contexto | M06 |
 | Enlace DOM | web-sys + wasm-bindgen / alternativa | M07 |

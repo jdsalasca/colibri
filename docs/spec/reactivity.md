@@ -1,6 +1,6 @@
 # Contrato de reactividad y ciclo de vida
 
-**Estado:** contrato objetivo con prototipo parcial en PR #2: `use_state`, tracking sincrónico, `use_memo` eager, `use_effect`, `use_effect_with_cleanup`, `batch` y cleanup por Scope. No está implementado un scheduler browser/concurrente ni reactividad asíncrona. Ver `docs/STATUS.md`.
+**Estado:** contrato M05 cubierto con prototipo verificable: `use_state`, tracking sincrónico, `use_memo` eager, `use_effect`, `use_effect_with_cleanup`, `batch`, cleanup por Scope, ciclos recuperables con `take_error()` y contadores con `stats()`. No está implementado un scheduler browser/concurrente, reactividad asíncrona ni DOM. Ver `docs/STATUS.md` y [ADR 0006](../adr/0006-reactive-cycles-and-stats.md).
 
 ## Modelo
 - `Signal<T>`: lectura/actualización de estado; operaciones definidas según ownership de Rust.
@@ -33,7 +33,7 @@ scope.track_effect(effect);
 batch(|| { price.set(11); price.set(12); });
 ```
 
-**Nota semántica:** esta no es la API de Hooks React y no depende de orden de invocación; depende de la vida útil de handles de Rust. La ejecución inicial de effect es inmediata, el memo recalcula eager, sólo se rastrean lecturas sincrónicas; suscriptores manuales siguen siendo síncronos incluso durante batch. Los ciclos reactivos están limitados por un panic diagnóstico, no por un error recuperable aún. No asumir paridad de timing con React, Solid ni Leptos.
+**Nota semántica:** esta no es la API de Hooks React y no depende de orden de invocación; depende de la vida útil de handles de Rust. La ejecución inicial de effect es inmediata, el memo recalcula eager, sólo se rastrean lecturas sincrónicas; suscriptores manuales siguen siendo síncronos incluso durante batch. Los ciclos reactivos se cortan tras 4.096 ejecuciones y dejan `ReactiveError::CycleLimit` en `take_error()`, sin panic. No asumir paridad de timing con React, Solid ni Leptos.
 
 ## Contrato observable MVP
 - `signal.get()` devuelve último valor confirmado.
