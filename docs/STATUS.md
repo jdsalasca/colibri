@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-16. Los workflows de GitHub Actions asociados al commit `801f768811e8e9379fceba92d03fb18846e1fc63` terminaron en **success** ([run 3](https://github.com/jdsalasca/colibri/actions/runs/43986730971) y [run 4](https://github.com/jdsalasca/colibri/actions/runs/43986737277)). Esta verificación no demuestra funcionalidad de framework completo. Cualquier agente debe revisar nuevamente la rama y sus resultados.
+Actualizado: 2026-11-16. Baseline M00 verificado en local sobre `main` (Windows 11, rustc 1.99.0 stable, cargo 1.99.0): formato, Clippy y 9 pruebas pasan. La ejecución de CI en GitHub para el nuevo workflow (que ahora usa `cargo fmt --all --check`) queda pendiente de push.
 
 ## Existente en la rama de fundación
 | Módulo | Implementado (limitado) | NO implementado |
@@ -24,10 +24,11 @@ Actualizado: 2026-11-16. Los workflows de GitHub Actions asociados al commit `80
 ## Registro de verificación
 | Comprobación | Estado |
 |---|---|
-| Integridad documental en GitHub | Archivos del PR consultados mediante GitHub; verificar tras fusionar |
-| `cargo fmt --all --check` | No verificado aquí |
-| `cargo clippy --workspace --all-targets -- -D warnings` | No verificado aquí |
-| `cargo test --workspace` | No verificado aquí |
+| `cargo fmt --all --check` | Pasa en local (M00) |
+| `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en local (M00) |
+| `cargo test --workspace` | Pasa en local: 9 pruebas (M00) |
+| `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques, no compila |
+| CI de GitHub con `--check` | Pendiente: requiere push |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |
 

@@ -31,7 +31,7 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 Necesitas [Rust estable](https://rustup.rs/).
 
 ```bash
-cargo fmt --all
+cargo fmt --all --check
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo run -p colibri-cli -- check examples/counter.colibri

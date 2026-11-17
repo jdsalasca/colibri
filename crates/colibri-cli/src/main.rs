@@ -19,10 +19,8 @@ fn run() -> Result<(), String> {
     if args.next().is_some() {
         return Err("too many arguments".into());
     }
-    let source = fs::read_to_string(&path)
-        .map_err(|e| format!("cannot read {path}: {e}"))?;
-    let component = parse(&source)
-        .map_err(|e| format!("invalid {path}: {e}"))?;
+    let source = fs::read_to_string(&path).map_err(|e| format!("cannot read {path}: {e}"))?;
+    let component = parse(&source).map_err(|e| format!("invalid {path}: {e}"))?;
     println!("SFC blocks valid: {path}");
     println!("  Rust script: {}", component.script.is_some());
     println!("  template bytes: {}", component.template.len());

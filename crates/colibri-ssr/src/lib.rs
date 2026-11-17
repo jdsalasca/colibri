@@ -42,8 +42,23 @@ fn escape_html(value: &str) -> String {
 }
 
 fn is_void(tag: &str) -> bool {
-    matches!(tag, "area" | "base" | "br" | "col" | "embed" | "hr" | "img"
-        | "input" | "link" | "meta" | "param" | "source" | "track" | "wbr")
+    matches!(
+        tag,
+        "area"
+            | "base"
+            | "br"
+            | "col"
+            | "embed"
+            | "hr"
+            | "img"
+            | "input"
+            | "link"
+            | "meta"
+            | "param"
+            | "source"
+            | "track"
+            | "wbr"
+    )
 }
 
 fn render_into(node: &Node, output: &mut String) -> Result<(), RenderError> {
@@ -57,11 +72,21 @@ fn render_into(node: &Node, output: &mut String) -> Result<(), RenderError> {
         }
         Node::Element(element) => {
             let tag = element.tag.to_ascii_lowercase();
-            if !valid_name(&element.tag) || matches!(
-                tag.as_str(),
-                "script" | "style" | "iframe" | "object" | "embed" | "svg"
-                    | "math" | "meta" | "base" | "link"
-            ) {
+            if !valid_name(&element.tag)
+                || matches!(
+                    tag.as_str(),
+                    "script"
+                        | "style"
+                        | "iframe"
+                        | "object"
+                        | "embed"
+                        | "svg"
+                        | "math"
+                        | "meta"
+                        | "base"
+                        | "link"
+                )
+            {
                 return Err(RenderError::InvalidTag);
             }
             if is_void(&tag) && !element.children.is_empty() {
@@ -80,12 +105,18 @@ fn render_into(node: &Node, output: &mut String) -> Result<(), RenderError> {
                 if lower.starts_with("on") || lower == "srcdoc" || lower == "style" {
                     return Err(RenderError::UnsafeAttribute);
                 }
-                if matches!(lower.as_str(), "href" | "src" | "action" | "formaction" | "xlink:href") {
-                    let normalized: String = value.chars()
+                if matches!(
+                    lower.as_str(),
+                    "href" | "src" | "action" | "formaction" | "xlink:href"
+                ) {
+                    let normalized: String = value
+                        .chars()
                         .filter(|ch| !ch.is_ascii_whitespace() && !ch.is_ascii_control())
-                        .flat_map(char::to_lowercase).collect();
+                        .flat_map(char::to_lowercase)
+                        .collect();
                     if ["javascript:", "vbscript:", "data:"]
-                        .iter().any(|prefix| normalized.starts_with(prefix))
+                        .iter()
+                        .any(|prefix| normalized.starts_with(prefix))
                     {
                         return Err(RenderError::UnsafeAttribute);
                     }
@@ -123,15 +154,23 @@ mod tests {
     use colibri_ir::Element;
 
     fn element(tag: &str, attributes: Vec<Attribute>, children: Vec<Node>) -> Node {
-        Node::Element(Element { tag: tag.into(), attributes, children })
+        Node::Element(Element {
+            tag: tag.into(),
+            attributes,
+            children,
+        })
     }
 
     #[test]
     fn escapes_content() {
-        let node = element("p", vec![Attribute::Static {
-            name: "title".into(),
-            value: "a\"<b".into(),
-        }], vec![Node::Text("<hello>&".into())]);
+        let node = element(
+            "p",
+            vec![Attribute::Static {
+                name: "title".into(),
+                value: "a\"<b".into(),
+            }],
+            vec![Node::Text("<hello>&".into())],
+        );
         assert_eq!(
             render_static(&node).unwrap(),
             "<p title=\"a&quot;&lt;b\">&lt;hello&gt;&amp;</p>"
@@ -140,17 +179,23 @@ mod tests {
 
     #[test]
     fn rejects_unsafe_attribute_values() {
-        let node = element("a", vec![Attribute::Static {
-            name: "href".into(),
-            value: " java\nscript:alert(1)".into(),
-        }], vec![]);
+        let node = element(
+            "a",
+            vec![Attribute::Static {
+                name: "href".into(),
+                value: " java\nscript:alert(1)".into(),
+            }],
+            vec![],
+        );
         assert_eq!(render_static(&node), Err(RenderError::UnsafeAttribute));
     }
 
     #[test]
     fn does_not_evaluate_dynamic_content() {
         assert_eq!(
-            render_static(&Node::DynamicText { expression: "count".into() }),
+            render_static(&Node::DynamicText {
+                expression: "count".into()
+            }),
             Err(RenderError::DynamicContent)
         );
     }

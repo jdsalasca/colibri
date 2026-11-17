@@ -89,7 +89,8 @@ pub fn parse(source: &str) -> Result<SingleFileComponent, ParseError> {
         }
         let close = format!("</{tag}>");
         let following = &rest[end + 1..];
-        let closing = following.find(&close)
+        let closing = following
+            .find(&close)
             .ok_or_else(|| ParseError::MissingClosingTag(tag.into()))?;
         let body = following[..closing].to_owned();
         rest = &following[closing + close.len()..];
@@ -117,7 +118,11 @@ pub fn parse(source: &str) -> Result<SingleFileComponent, ParseError> {
                 if !matches!(lang.as_deref(), None | Some("css") | Some("scss")) {
                     return Err(ParseError::InvalidStyleLanguage);
                 }
-                style = Some(StyleBlock { content: body, lang, scoped: is_scoped(open) });
+                style = Some(StyleBlock {
+                    content: body,
+                    lang,
+                    scoped: is_scoped(open),
+                });
             }
             _ => unreachable!(),
         }
@@ -126,7 +131,11 @@ pub fn parse(source: &str) -> Result<SingleFileComponent, ParseError> {
     if template.trim().is_empty() {
         return Err(ParseError::MissingTemplate);
     }
-    Ok(SingleFileComponent { script, template, style })
+    Ok(SingleFileComponent {
+        script,
+        template,
+        style,
+    })
 }
 
 #[cfg(test)]
@@ -148,7 +157,10 @@ mod tests {
 
     #[test]
     fn detects_duplicate_and_missing_templates() {
-        assert_eq!(parse("<script lang=\"rust\">x</script>"), Err(ParseError::MissingTemplate));
+        assert_eq!(
+            parse("<script lang=\"rust\">x</script>"),
+            Err(ParseError::MissingTemplate)
+        );
         assert_eq!(
             parse("<template>a</template><template>b</template>"),
             Err(ParseError::DuplicateBlock("template".into()))

@@ -20,7 +20,9 @@ pub struct Signal<T> {
 
 impl<T> Clone for Signal<T> {
     fn clone(&self) -> Self {
-        Self { inner: Rc::clone(&self.inner) }
+        Self {
+            inner: Rc::clone(&self.inner),
+        }
     }
 }
 
@@ -56,8 +58,7 @@ impl<T> Signal<T> {
             f(&mut current);
         }
         // Snapshot observers, allowing subscriptions to change in a callback.
-        let watchers: Vec<Watcher> =
-            self.inner.watchers.borrow().values().cloned().collect();
+        let watchers: Vec<Watcher> = self.inner.watchers.borrow().values().cloned().collect();
         for watcher in watchers {
             watcher();
         }
@@ -65,10 +66,13 @@ impl<T> Signal<T> {
 
     pub fn subscribe(&self, callback: impl Fn() + 'static) -> Subscription<T> {
         let id = self.inner.next_id.get();
-        self.inner.next_id.set(
-            id.checked_add(1).expect("subscriber id exhausted"),
-        );
-        self.inner.watchers.borrow_mut().insert(id, Rc::new(callback));
+        self.inner
+            .next_id
+            .set(id.checked_add(1).expect("subscriber id exhausted"));
+        self.inner
+            .watchers
+            .borrow_mut()
+            .insert(id, Rc::new(callback));
         Subscription {
             inner: Rc::downgrade(&self.inner),
             id,

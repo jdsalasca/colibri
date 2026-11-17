@@ -10,9 +10,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - name: Format sources (prototype)
-        run: cargo fmt --all
+      - name: Format check
+        run: cargo fmt --all --check
       - name: Lint
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Tests
         run: cargo test --workspace
+      - name: SFC structural check
+        run: cargo run -p colibri-cli -- check examples/counter.colibri
