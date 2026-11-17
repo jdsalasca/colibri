@@ -6,6 +6,7 @@ Actualizado: 2026-11-16. M00–M06 y componentes funcionales se validaron en CI 
 | Módulo | Implementado (limitado) | NO implementado |
 |---|---|---|
 | `colibri-core` | `Signal<T>`, `Scope`; tracking sincrónico, `use_state`, `use_memo` eager, `use_effect`, cleanup, `batch`; ciclos recuperables con `take_error()`, `stats()` y `Scope::dispose` (M05) | browser scheduler, tracking async, memo lazy, concurrencia, DOM |
+| `colibri-dom` | runtime DOM/WASM: `View`, `dom!`, `mount`, bindings con effects, eventos y cleanup (M07 parcial) | reconciliación estructural, SFC cliente, hidratación, async/lazy |
 | `colibri-parser` | scanner SFC, AST con spans, atributos e interpolaciones; límites de tamaño/profundidad; lowering estático a IR (M01–M02) | validación integral de expresiones Rust, HTML5 completo, entidades, SCSS |
 | `colibri-ir` | IR con spans: texto, texto dinámico, elementos, fragmentos, atributos y eventos; lowering SFC→IR (M02) | componentes/calls, props, control de flujo, análisis de dependencias, codegen |
 | `colibri-codegen` | SFC → programa Rust con script, expresiones y atributos dinámicos; `build`/`eval` ejecutan con rustc (M06b) | control de flujo, componentes, eventos, SCSS, optimización |
@@ -13,19 +14,20 @@ Actualizado: 2026-11-16. M00–M06 y componentes funcionales se validaron en CI 
 | `colibri-cli` | `check`, `render` (estático/`--bind`), `build` (Rust generado) y `eval` (compila y ejecuta) | compilación WASM, dev server, preview, benchmark |
 | `colibri-macros` | `view!` dinámico y `#[component]` con props tipadas, children vía `Fragment`, composición y `Option`/null safety; eventos bloqueados (M03/M09) | slots nombrados, eventos, WASM, componentes en SFC |
 | `packages/vite-plugin-colibri` | README de intención | plugin ejecutable |
-| `examples/` | SFC estático, SFC dinámico con `--bind`, `eval` con script Rust y macro Rust ejecutables; ejemplo nativo de reactividad en `colibri-core/examples/` | UI browser/WASM ejecutable |
+| `examples/` | SFC estático, SFC dinámico con `--bind`, `eval` con script Rust, macro Rust y contador WASM con hooks/eventos; ejemplo nativo de reactividad en `colibri-core/examples/` | UI browser/WASM ejecutable con SFC/hidratación |
 
 ## Limitaciones y riesgos conocidos
 - El parser actual busca cierres de etiquetas de forma simple: no es seguro para HTML arbitrario ni etiquetas embebidas, comentarios complejos o bloques Rust que incluyan textos coincidentes.
 - El renderer está deliberadamente restringido. No ampliar tags/atributos sin revisar XSS, URL schemes, atributos booleanos y reglas HTML/ARIA.
 - El núcleo reactivo usa reactividad síncrona con cola de memos antes de effects. Los ciclos se cortan tras 4.096 ejecuciones y dejan un `ReactiveError::CycleLimit` recuperable con `take_error()`; no hay panic automático. Los memos son eager y no existe scheduler del navegador.
-- `use_state`/`use_memo`/`use_effect` existen en `colibri-core`, pero **no hay render loop de componente ni DOM**: un `set` no repinta HTML. Async, `Resource` y lazy siguen pendientes (M07). Ver [hooks](guide/hooks.md).
+- `use_state`/`use_memo`/`use_effect` existen en `colibri-core`; el runtime DOM/WASM ya los conecta a texto/atributos en componentes que devuelven `View`. Siguen pendientes: reconciliación estructural, SFC cliente, hidratación, async/`Resource` y lazy. Ver [hooks](guide/hooks.md).
 - `stats()` es instrumentación thread-local para tests; no es un perfil de memoria ni una métrica de producción.
 - CI del PR #3 comprobado con 55 tests y checks de formato/Clippy; cualquier commit futuro debe volver a pasar los checks.
 - Los archivos de ejemplo `Counter.rs` y `Counter.colibri` son **sintaxis objetivo**, no una implementación compilable.
 - No existe todavía evidencia de ventajas respecto a React, Solid, Svelte, Leptos o JS.
 - El pipeline estático no evalúa expresiones ni eventos y no decodifica entidades HTML de entrada (`&amp;` se trata como texto literal). Los comentarios HTML se descartan en lowering.
 - El SSR dinámico tiene dos vías: resolver del host (`render --bind`, [ADR 0007](adr/0007-dynamic-ssr-resolver.md)) y codegen Rust (`build`/`eval`, [ADR 0008](adr/0008-sfc-rust-codegen.md)). La segunda compila el script real con rustc, pero no es sandbox, no admite control de flujo/componentes/eventos/SCSS y los errores de tipo apuntan al Rust generado.
+- El runtime DOM/WASM (`dom!`) actualiza texto/atributos y eventos, pero la estructura es estática tras `mount`: no hay reconciliación para listas/condicionales ni hidratación SSR ([ADR 0011](adr/0011-dom-runtime-mvp.md)).
 - El audit portátil de `teachers` pasa; el baseline estricto (`missing_docs`, `unwrap_used`, cobertura 60%) sólo se aplica por ahora a `colibri-codegen`. Ver [calidad](quality.md).
 - La ruta Rust usa spans sintéticos (`file!()`, `0..0`) porque los proc macros estables no exponen offsets de byte; los errores de sintaxis sí apuntan al token real.
 
@@ -41,6 +43,8 @@ Actualizado: 2026-11-16. M00–M06 y componentes funcionales se validaron en CI 
 | `colibri eval examples/greeting.colibri` | Compila el script con rustc y emite HTML con valores calculados (M06b) |
 | `cargo test -p colibri-ssr` | 12 pruebas: escape, URL allowlist, dinámicos, meta/link seguros y rechazos |
 | `cargo test -p colibri-macros` | Componentes, props tipadas, composición, children y `Option`/null safety (M03b) |
+| Build WASM + wasm-bindgen | `colibri-dom` compila a `wasm32-unknown-unknown`; demo servido sin Vite |
+| Chrome/Playwright | Contador: `0 → 1`, `doble 0 → 2`, sin errores de consola; captura `counter.png` |
 | Audit portátil de `teachers` | fmt + clippy + README + `expect` limpios; quedan 4 archivos >400 líneas (deuda documentada en [quality](quality.md)) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
 | CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `b51206e`: [run 43998371532](https://github.com/jdsalasca/colibri/actions/runs/43998371532) / [run 43998334408](https://github.com/jdsalasca/colibri/actions/runs/43998334408) |
@@ -72,6 +76,12 @@ Dashboard de manuales internos con Axum + componentes Colibrí, sin JavaScript:
 - Capturas: `dashboard.png` (desktop) y `dashboard-mobile.png` (390×844).
 - Sirve `/static/app.css` compilado desde SCSS.
 - Limitaciones: sin persistencia, autenticación, edición ni eventos cliente.
+
+## Avance M07 — runtime DOM/WASM
+
+`colibri-dom` (wasm32) monta un `View` en el DOM, actualiza texto/atributos con effects y registra eventos con `Closure`. `#[component]` funciona con retorno `View` y children vía `Fragment`. El demo `crates/colibri-dom/demo` usa `use_state`, `use_memo`, un componente `Panel` y `on:click`; en Chrome real: `0→1`, `doble 0→2`, sin errores de consola. Ver [ADR 0011](adr/0011-dom-runtime-mvp.md).
+
+Pendiente: reconciliación estructural, SFC cliente, hidratación, tests E2E en CI, medición JS↔WASM, async/lazy.
 
 ### Entrega entre agentes
 

@@ -1,6 +1,6 @@
 # Renderizado, DOM, SSR y activación cliente
 
-**Estado:** MVP estático implementado y primera rebanada de SSR dinámico con resolver explícito (M06a, [ADR 0007](../adr/0007-dynamic-ssr-resolver.md)). Evaluación Rust real, streaming e hidratación siguen pendientes.
+**Estado:** MVP estático, SSR dinámico con resolver y runtime DOM/WASM client-only (M07 parcial). Faltan streaming, hidratación e islas.
 
 ## Modos objetivo
 | Modo | Transferencia cliente | Uso típico |

@@ -47,10 +47,26 @@ const VOID_ELEMENTS: &[&str] = &[
 #[proc_macro]
 pub fn view(input: TokenStream) -> TokenStream {
     let view = parse_macro_input!(input as View);
-    match expand(&view) {
+    match expand(&view, Backend::Ssr) {
         Ok(tokens) => tokens.into(),
         Err(error) => error.to_compile_error().into(),
     }
+}
+
+/// Build a `colibri_dom::View` for the browser runtime.
+#[proc_macro]
+pub fn dom(input: TokenStream) -> TokenStream {
+    let view = parse_macro_input!(input as View);
+    match expand(&view, Backend::Dom) {
+        Ok(tokens) => tokens.into(),
+        Err(error) => error.to_compile_error().into(),
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Backend {
+    Ssr,
+    Dom,
 }
 
 #[proc_macro_attribute]
@@ -81,6 +97,7 @@ struct ViewElement {
 
 struct ViewAttribute {
     name: String,
+    span: Span,
     value: ViewAttributeValue,
 }
 
@@ -88,6 +105,7 @@ enum ViewAttributeValue {
     Boolean,
     Static(LitStr),
     Dynamic(Expr),
+    Event { event: String, handler: Expr },
 }
 
 impl Parse for View {
@@ -179,16 +197,32 @@ fn parse_children(input: ParseStream, tag: &str, tag_span: Span) -> Result<Vec<V
 }
 
 fn parse_attribute(input: ParseStream) -> Result<ViewAttribute> {
-    let (name, _) = parse_name(input)?;
+    let (name, span) = parse_name(input)?;
 
     if input.peek(Token![:]) {
-        let span = input.span();
+        let colon_span = input.span();
         input.parse::<Token![:]>()?;
         let (suffix, _) = parse_name(input)?;
+        if name == "on" {
+            input.parse::<Token![=]>()?;
+            if !input.peek(syn::token::Brace) {
+                return Err(input.error("event handler must be {closure}"));
+            }
+            let content;
+            braced!(content in input);
+            return Ok(ViewAttribute {
+                name,
+                span,
+                value: ViewAttributeValue::Event {
+                    event: suffix,
+                    handler: content.parse()?,
+                },
+            });
+        }
         return Err(syn::Error::new(
-            span,
+            colon_span,
             format!(
-                "`{name}:{suffix}` needs the interactive runtime; static views cannot bind events or namespaced attributes yet (M07)"
+                "`{name}:{suffix}` is not supported; only `on:event={{handler}}` is available in dom!"
             ),
         ));
     }
@@ -208,7 +242,7 @@ fn parse_attribute(input: ParseStream) -> Result<ViewAttribute> {
         ViewAttributeValue::Boolean
     };
 
-    Ok(ViewAttribute { name, value })
+    Ok(ViewAttribute { name, span, value })
 }
 
 /// Parse `ident ("-" ident)*` so `data-*`, `aria-*` and custom tags work.
@@ -236,59 +270,87 @@ fn is_component(tag: &str) -> bool {
     tag.chars().next().is_some_and(char::is_uppercase)
 }
 
-fn expand(view: &View) -> Result<TokenStream2> {
+fn expand(view: &View, backend: Backend) -> Result<TokenStream2> {
     let children = view
         .nodes
         .iter()
-        .map(node_tokens)
+        .map(|node| node_tokens(node, backend))
         .collect::<Result<Vec<_>>>()?;
-    let span = span_tokens();
-    Ok(quote! {
-        ::colibri_ir::Node::Fragment {
-            children: ::std::vec![#(#children),*],
-            span: #span,
-        }
-    })
-}
-
-fn node_tokens(node: &ViewNode) -> Result<TokenStream2> {
-    match node {
-        ViewNode::Text(literal) => {
+    match backend {
+        Backend::Ssr => {
             let span = span_tokens();
             Ok(quote! {
-                ::colibri_ir::Node::Text {
-                    value: #literal.to_owned(),
+                ::colibri_ir::Node::Fragment {
+                    children: ::std::vec![#(#children),*],
                     span: #span,
                 }
             })
         }
-        ViewNode::DynamicText(expression) => {
-            let span = span_tokens();
-            Ok(quote! {
-                ::colibri_ir::Node::Text {
-                    value: format!("{}", (#expression)),
-                    span: #span,
-                }
-            })
-        }
-        ViewNode::Element(element) if element.tag == "Fragment" => fragment_tokens(element),
-        ViewNode::Element(element) if is_component(&element.tag) => component_tokens(element),
-        ViewNode::Element(element) => element_tokens(element),
+        Backend::Dom => Ok(quote! {
+            ::colibri_dom::View::Fragment(::std::vec![#(#children),*])
+        }),
     }
 }
 
-fn element_tokens(element: &ViewElement) -> Result<TokenStream2> {
+fn node_tokens(node: &ViewNode, backend: Backend) -> Result<TokenStream2> {
+    match node {
+        ViewNode::Text(literal) => match backend {
+            Backend::Ssr => {
+                let span = span_tokens();
+                Ok(quote! {
+                    ::colibri_ir::Node::Text {
+                        value: #literal.to_owned(),
+                        span: #span,
+                    }
+                })
+            }
+            Backend::Dom => Ok(quote! {
+                ::colibri_dom::View::Text(#literal.to_owned())
+            }),
+        },
+        ViewNode::DynamicText(expression) => match backend {
+            Backend::Ssr => {
+                let span = span_tokens();
+                Ok(quote! {
+                    ::colibri_ir::Node::Text {
+                        value: format!("{}", (#expression)),
+                        span: #span,
+                    }
+                })
+            }
+            Backend::Dom => Ok(quote! {
+                ::colibri_dom::View::DynamicText(::std::rc::Rc::new(move || format!("{}", (#expression))))
+            }),
+        },
+        ViewNode::Element(element) if element.tag == "Fragment" => {
+            fragment_tokens(element, backend)
+        }
+        ViewNode::Element(element) if is_component(&element.tag) => {
+            component_tokens(element, backend)
+        }
+        ViewNode::Element(element) => element_tokens(element, backend),
+    }
+}
+
+fn element_tokens(element: &ViewElement, backend: Backend) -> Result<TokenStream2> {
+    match backend {
+        Backend::Ssr => ssr_element_tokens(element),
+        Backend::Dom => dom_element_tokens(element),
+    }
+}
+
+fn ssr_element_tokens(element: &ViewElement) -> Result<TokenStream2> {
     let tag = &element.tag;
     let span = span_tokens();
     let attributes = element
         .attributes
         .iter()
-        .map(attribute_tokens)
-        .collect::<Vec<_>>();
+        .map(|attribute| attribute_tokens(attribute, Backend::Ssr))
+        .collect::<Result<Vec<_>>>()?;
     let children = element
         .children
         .iter()
-        .map(node_tokens)
+        .map(|child| node_tokens(child, Backend::Ssr))
         .collect::<Result<Vec<_>>>()?;
     Ok(quote! {
         ::colibri_ir::Node::Element(::colibri_ir::Element {
@@ -300,7 +362,39 @@ fn element_tokens(element: &ViewElement) -> Result<TokenStream2> {
     })
 }
 
-fn component_tokens(element: &ViewElement) -> Result<TokenStream2> {
+fn dom_element_tokens(element: &ViewElement) -> Result<TokenStream2> {
+    let tag = &element.tag;
+    let mut attributes = Vec::new();
+    let mut events = Vec::new();
+    for attribute in &element.attributes {
+        match &attribute.value {
+            ViewAttributeValue::Event { event, handler } => {
+                events.push(quote! {
+                    ::colibri_dom::EventBinding {
+                        name: #event.to_owned(),
+                        handler: ::std::rc::Rc::new(#handler),
+                    }
+                });
+            }
+            _ => attributes.push(attribute_tokens(attribute, Backend::Dom)?),
+        }
+    }
+    let children = element
+        .children
+        .iter()
+        .map(|child| node_tokens(child, Backend::Dom))
+        .collect::<Result<Vec<_>>>()?;
+    Ok(quote! {
+        ::colibri_dom::View::Element(::colibri_dom::ElementView {
+            tag: #tag.to_owned(),
+            attributes: ::std::vec![#(#attributes),*],
+            events: ::std::vec![#(#events),*],
+            children: ::std::vec![#(#children),*],
+        })
+    })
+}
+
+fn component_tokens(element: &ViewElement, backend: Backend) -> Result<TokenStream2> {
     let tag = syn::parse_str::<Ident>(&element.tag).map_err(|_| {
         syn::Error::new(
             element.tag_span,
@@ -322,6 +416,12 @@ fn component_tokens(element: &ViewElement) -> Result<TokenStream2> {
                 ViewAttributeValue::Boolean => quote! { true },
                 ViewAttributeValue::Static(literal) => quote! { #literal.to_owned() },
                 ViewAttributeValue::Dynamic(expression) => quote! { #expression },
+                ViewAttributeValue::Event { .. } => {
+                    return Err(syn::Error::new(
+                        attribute.span,
+                        "events on components are not supported; pass a closure prop instead",
+                    ));
+                }
             };
             Ok(quote! { #field: #value })
         })
@@ -330,15 +430,14 @@ fn component_tokens(element: &ViewElement) -> Result<TokenStream2> {
         let children = element
             .children
             .iter()
-            .map(node_tokens)
+            .map(|child| node_tokens(child, backend))
             .collect::<Result<Vec<_>>>()?;
         fields.push(quote! { children: ::std::vec![#(#children),*] });
     }
     Ok(quote! { #tag(#props { #(#fields),* }) })
 }
 
-/// `<Fragment nodes={children}/>` splices an owned `Vec<Node>` without escaping.
-fn fragment_tokens(element: &ViewElement) -> Result<TokenStream2> {
+fn fragment_tokens(element: &ViewElement, backend: Backend) -> Result<TokenStream2> {
     if !element.children.is_empty() {
         return Err(syn::Error::new(
             element.tag_span,
@@ -361,47 +460,90 @@ fn fragment_tokens(element: &ViewElement) -> Result<TokenStream2> {
         };
         nodes = Some(expression);
     }
-    let span = span_tokens();
-    match nodes {
-        Some(nodes) => Ok(quote! {
-            ::colibri_ir::Node::Fragment {
-                children: #nodes,
-                span: #span,
+    match backend {
+        Backend::Ssr => {
+            let span = span_tokens();
+            match nodes {
+                Some(nodes) => Ok(quote! {
+                    ::colibri_ir::Node::Fragment {
+                        children: #nodes,
+                        span: #span,
+                    }
+                }),
+                None => Ok(quote! {
+                    ::colibri_ir::Node::Fragment {
+                        children: ::std::vec![],
+                        span: #span,
+                    }
+                }),
             }
-        }),
-        None => Ok(quote! {
-            ::colibri_ir::Node::Fragment {
-                children: ::std::vec![],
-                span: #span,
-            }
-        }),
+        }
+        Backend::Dom => match nodes {
+            Some(nodes) => Ok(quote! { ::colibri_dom::View::Fragment(#nodes) }),
+            None => Ok(quote! { ::colibri_dom::View::Fragment(::std::vec![]) }),
+        },
     }
 }
 
-fn attribute_tokens(attribute: &ViewAttribute) -> TokenStream2 {
+fn attribute_tokens(attribute: &ViewAttribute, backend: Backend) -> Result<TokenStream2> {
     let name = &attribute.name;
-    let span = span_tokens();
     match &attribute.value {
-        ViewAttributeValue::Boolean => quote! {
-            ::colibri_ir::Attribute::Boolean {
-                name: #name.to_owned(),
-                span: #span,
+        ViewAttributeValue::Boolean => Ok(match backend {
+            Backend::Ssr => {
+                let span = span_tokens();
+                quote! {
+                    ::colibri_ir::Attribute::Boolean {
+                        name: #name.to_owned(),
+                        span: #span,
+                    }
+                }
             }
-        },
-        ViewAttributeValue::Static(value) => quote! {
-            ::colibri_ir::Attribute::Static {
-                name: #name.to_owned(),
-                value: #value.to_owned(),
-                span: #span,
+            Backend::Dom => quote! {
+                ::colibri_dom::Attribute::Boolean {
+                    name: #name.to_owned(),
+                }
+            },
+        }),
+        ViewAttributeValue::Static(value) => Ok(match backend {
+            Backend::Ssr => {
+                let span = span_tokens();
+                quote! {
+                    ::colibri_ir::Attribute::Static {
+                        name: #name.to_owned(),
+                        value: #value.to_owned(),
+                        span: #span,
+                    }
+                }
             }
-        },
-        ViewAttributeValue::Dynamic(expression) => quote! {
-            ::colibri_ir::Attribute::Static {
-                name: #name.to_owned(),
-                value: format!("{}", (#expression)),
-                span: #span,
+            Backend::Dom => quote! {
+                ::colibri_dom::Attribute::Static {
+                    name: #name.to_owned(),
+                    value: #value.to_owned(),
+                }
+            },
+        }),
+        ViewAttributeValue::Dynamic(expression) => Ok(match backend {
+            Backend::Ssr => {
+                let span = span_tokens();
+                quote! {
+                    ::colibri_ir::Attribute::Static {
+                        name: #name.to_owned(),
+                        value: format!("{}", (#expression)),
+                        span: #span,
+                    }
+                }
             }
-        },
+            Backend::Dom => quote! {
+                ::colibri_dom::Attribute::Dynamic {
+                    name: #name.to_owned(),
+                    value: ::std::rc::Rc::new(move || format!("{}", (#expression))),
+                }
+            },
+        }),
+        ViewAttributeValue::Event { .. } => Err(syn::Error::new(
+            attribute.span,
+            "events require dom! and the client runtime",
+        )),
     }
 }
 
@@ -539,11 +681,15 @@ mod tests {
     }
 
     #[test]
-    fn rejects_events() {
-        let error = parse_view("<button on:click={go}>\"x\"</button>")
-            .err()
-            .expect("expected a syntax error");
-        assert!(error.to_string().contains("M07"));
+    fn parses_events() {
+        let view = parse_view("<button on:click={go}>\"x\"</button>").unwrap();
+        let ViewNode::Element(element) = &view.nodes[0] else {
+            panic!("expected element");
+        };
+        assert!(matches!(
+            element.attributes[0].value,
+            ViewAttributeValue::Event { .. }
+        ));
     }
 
     #[test]

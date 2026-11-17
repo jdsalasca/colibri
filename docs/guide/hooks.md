@@ -33,13 +33,43 @@ batch(|| {
 - `take_error()`: devuelve `ReactiveError::CycleLimit` tras 4.096 ejecuciones.
 - `stats()`: señales, suscripciones, observadores y cola.
 
+## Hooks en cliente (WASM)
+
+`colibri-dom` conecta las primitivas al DOM. Un componente que devuelve `View` puede usar `use_state`, `use_memo`, `use_effect` y eventos:
+
+```rust
+use colibri_core::{use_memo, use_state};
+use colibri_dom::{mount, View};
+use colibri_macros::{component, dom};
+
+#[component]
+pub fn Counter() -> View {
+    let count = use_state(0);
+    let text = count.clone();
+    let click = count.clone();
+    let doubled = use_memo({
+        let count = count.clone();
+        move || count.get() * 2
+    });
+    dom! {
+        <div>
+            <p>{text.get()}</p>
+            <p>"doble: " {doubled.get()}</p>
+            <button on:click={move |_| click.update(|n| *n += 1)}>"+1"</button>
+        </div>
+    }
+}
+```
+
+`mount(view, container)` construye el DOM, suscribe los bindings y limpia listeners/effects al soltar el `MountHandle`. Demo reproducible: [`colibri-dom/demo`](../../crates/colibri-dom/demo/README.md).
+
 ## Lo que todavía no existe
 
-- **Render loop de componente**: `use_state` cambia el valor, pero un componente SSR no se vuelve a ejecutar ni el HTML se repinta.
-- **DOM/eventos**: no hay runtime cliente WASM; `on:click` no compila.
+- **Reconciliación estructural**: la forma del árbol se fija al montar; listas/condicionales que cambian requieren remount o diff (pendiente).
+- **SFC cliente**: `dom!` es la ruta Rust; `.colibri` aún no compila a WASM.
+- **Hidratación** SSR → cliente.
 - **Async**: no existe `use_resource`/`use_async` ni estados `Loading/Ready/Error`.
 - **Lazy**: `use_memo` es eager; no hay componentes lazy ni code splitting.
-- **Hydration/SSR cliente**: pendiente M07/M09.
 
 ## Semántica recomendada para el futuro
 
@@ -47,7 +77,7 @@ batch(|| {
 2. `Resource<T>` con `Loading`, `Ready(T)`, `Error(E)` y cancelación al desmontar.
 3. `Lazy` como componente que no ejecuta su cómputo hasta el primer render real.
 4. Un `Scope` de componente que limpie effects, listeners y tareas.
-5. El cliente re-renderiza sólo los bindings afectados, no el árbol completo.
+5. Reconciliación estable para listas keyed y condicionales.
 
 Hasta entonces, usa `Signal`/`Memo`/`Effect` como primitivas de servidor o en procesos Rust; no esperes comportamiento React en el navegador.
 

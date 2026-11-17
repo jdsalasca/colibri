@@ -106,6 +106,35 @@ async fn main() {
 }
 ```
 
+## Cliente WASM
+
+Los componentes también pueden devolver `View` y montarse con `colibri-dom`:
+
+```rust
+use colibri_dom::{mount, View};
+use colibri_macros::{component, dom};
+
+#[component]
+pub fn Panel(title: String, children: Vec<View>) -> View {
+    dom! {
+        <section>
+            <h2>{title}</h2>
+            <Fragment nodes={children}/>
+        </section>
+    }
+}
+```
+
+`dom!` acepta `on:click={move |_| ...}` y valores dinámicos. Los children de un componente DOM son `Vec<View>`, no `Vec<Node>`. Build:
+
+```sh
+cargo build -p colibri-dom --example counter --target wasm32-unknown-unknown --release
+wasm-bindgen --target web --out-dir crates/colibri-dom/demo/pkg \
+  target/wasm32-unknown-unknown/release/examples/counter.wasm
+```
+
+Demo completo: [`colibri-dom/demo`](../../crates/colibri-dom/demo/README.md).
+
 Dependencias del app:
 
 ```toml

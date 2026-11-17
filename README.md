@@ -20,7 +20,8 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 
 | Paquete | Estado | Función |
 |---|---|---|
-| `colibri-core` | Prototipo | Signals, scopes y motor con `use_state`, `use_memo`, `use_effect`, `batch`, ciclos recuperables (`take_error`), `stats()` y `Scope::dispose` (sin browser/async todavía) |
+| `colibri-core` | Prototipo | Signals, scopes y motor con `use_state`, `use_memo`, `use_effect`, `batch`, ciclos recuperables (`take_error`), `stats()` y `Scope::dispose` |
+| `colibri-dom` | Prototipo | Runtime DOM/WASM: `View`, `dom!`, `mount`, bindings con effects, eventos y cleanup (M07 parcial) |
 | `colibri-parser` | Prototipo | Scanner SFC y AST de template con spans (M01); no compila |
 | `colibri-ir` | Prototipo | IR semántica con spans y lowering SFC→IR (M02) |
 | `colibri-codegen` | Prototipo | SFC → programa Rust; `build`/`eval` con rustc real (M06b) |
@@ -58,6 +59,34 @@ let node = view! { <Greeting name="Ada"/> };
 
 Props tipadas generadas por el macro, composición y `Option<T>` para null safety. Guía: [componentes y SSR](docs/guide/components.md).
 
+## Cliente WASM
+
+```rust
+use colibri_core::{use_memo, use_state};
+use colibri_dom::{mount, View};
+use colibri_macros::{component, dom};
+
+#[component]
+pub fn Counter() -> View {
+    let count = use_state(0);
+    let text = count.clone();
+    let click = count.clone();
+    let doubled = use_memo({
+        let count = count.clone();
+        move || count.get() * 2
+    });
+    dom! {
+        <div>
+            <p>{text.get()}</p>
+            <p>"doble: " {doubled.get()}</p>
+            <button on:click={move |_| click.update(|n| *n += 1)}>"+1"</button>
+        </div>
+    }
+}
+```
+
+Build y demo: [`colibri-dom/demo`](crates/colibri-dom/demo/README.md). `dom!` acepta eventos y actualiza bindings sin reconstruir el árbol.
+
 ## Primeros pasos
 
 Necesitas [Rust estable](https://rustup.rs/).
@@ -79,6 +108,7 @@ cargo run -p colibri-cli -- eval examples/greeting.colibri
 ```text
 crates/
   colibri-core/       Signals, memo, effects, scheduler y scopes
+  colibri-dom/        Runtime DOM/WASM con `dom!` y `mount`
   colibri-codegen/    SFC a programa Rust ejecutable
   colibri-ir/         Modelo de representación de componentes
   colibri-macros/     Macro proc `view!` para la ruta Rust

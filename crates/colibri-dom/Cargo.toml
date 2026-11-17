@@ -1,0 +1,15 @@
+[package]
+name = "colibri-dom"
+version.workspace = true
+edition.workspace = true
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+colibri-core = { path = "../colibri-core" }
+wasm-bindgen = "=0.2.130"
+web-sys = { version = "=0.3.107", features = ["Document", "Element", "Event", "EventTarget", "Node", "NodeList", "Text", "Window"] }
+
+[dev-dependencies]
+colibri-macros = { path = "../colibri-macros" }
+
+[lints]
+workspace = true

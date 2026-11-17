@@ -18,3 +18,12 @@ jobs:
         run: cargo test --workspace
       - name: SFC structural check
         run: cargo run -p colibri-cli -- check examples/counter.colibri
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Build DOM/WASM demo
+        run: cargo build -p colibri-dom --example counter --target wasm32-unknown-unknown --release
