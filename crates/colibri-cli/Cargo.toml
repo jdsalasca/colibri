@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+colibri-codegen = { path = "../colibri-codegen" }
 colibri-parser = { path = "../colibri-parser" }
 colibri-ssr = { path = "../colibri-ssr" }
 

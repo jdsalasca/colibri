@@ -1,0 +1,24 @@
+[package]
+name = "colibri-codegen"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+colibri-parser = { path = "../colibri-parser" }
+
+[dev-dependencies]
+colibri-ir = { path = "../colibri-ir" }
+colibri-parser = { path = "../colibri-parser" }
+colibri-ssr = { path = "../colibri-ssr" }
+
+[lints.rust]
+missing_docs = "deny"
+unsafe_code = "forbid"
+
+[lints.clippy]
+cognitive_complexity = "deny"
+expect_used = "deny"
+panic = "deny"
+too_many_arguments = "deny"
+too_many_lines = "deny"
+unwrap_used = "deny"

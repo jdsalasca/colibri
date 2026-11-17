@@ -1,15 +1,22 @@
 # Toolchain / CLI / Vite / SCSS — diseño
 
-**Estado:** objetivo, actualmente no implementado. Sólo existe `colibri-cli check` muy limitado.
+**Estado:** parcialmente implementado. Existen `check`, `render` (estático o `--bind`) y `build`/`eval` con codegen Rust. No existen `new`, `dev`, `preview`, `explain` ni `benchmark`.
 
 ## Objetivo de desarrollo
 Una app usa workspace Rust con Cargo, archivos `.rs` y `.colibri`, CSS/SCSS, assets estáticos y, opcionalmente, Vite para servir/HMR y resolver recursos. Colibrí no obliga a instalar npm para compilar una biblioteca Rust que no usa Vite.
+
+## CLI actual
+~~~sh
+colibri check <component.colibri>                  # estructura SFC
+colibri render <component.colibri> [--bind k=v]    # HTML estático o con resolver
+colibri build <component.colibri> [--out file.rs]  # programa Rust generado
+colibri eval <component.colibri>                   # compila y ejecuta el Rust generado
+~~~
 
 ## CLI objetivo (NO disponible)
 ~~~sh
 colibri new app
 colibri dev
-colibri check
 colibri build --release
 colibri preview
 colibri explain ComponentName

@@ -6,6 +6,16 @@ version = 4
 name = "colibri-cli"
 version = "0.0.1"
 dependencies = [
+ "colibri-codegen",
+ "colibri-parser",
+ "colibri-ssr",
+]
+
+[[package]]
+name = "colibri-codegen"
+version = "0.0.1"
+dependencies = [
+ "colibri-ir",
  "colibri-parser",
  "colibri-ssr",
 ]

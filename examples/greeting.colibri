@@ -1,3 +1,7 @@
+<script lang="rust">
+let name = String::from("Ada");
+let message = String::from("Bienvenida");
+</script>
 <template>
   <article class="greeting">
     <h1>Hola {name}</h1>

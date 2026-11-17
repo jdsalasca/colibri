@@ -23,9 +23,10 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 | `colibri-core` | Prototipo | Signals, scopes y motor con `use_state`, `use_memo`, `use_effect`, `batch`, ciclos recuperables (`take_error`), `stats()` y `Scope::dispose` (sin browser/async todavía) |
 | `colibri-parser` | Prototipo | Scanner SFC y AST de template con spans (M01); no compila |
 | `colibri-ir` | Prototipo | IR semántica con spans y lowering SFC→IR (M02) |
+| `colibri-codegen` | Prototipo | SFC → programa Rust; `build`/`eval` con rustc real (M06b) |
 | `colibri-macros` | Prototipo | `view!` estático a IR; dinámico/eventos fallan en compilación (M03) |
 | `colibri-ssr` | Prototipo | Render HTML estático seguro y SSR dinámico con resolver explícito y errores por span (M02/M06a) |
-| `colibri-cli` | Prototipo | `check`, `render` estático y `render --bind key=value` |
+| `colibri-cli` | Prototipo | `check`, `render` (estático/`--bind`), `build` y `eval` |
 
 ## Dos sintaxis, el mismo IR
 
@@ -52,15 +53,17 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo run -p colibri-cli -- check examples/counter.colibri
 cargo run -p colibri-cli -- render examples/static-card.colibri
 cargo run -p colibri-cli -- render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida
+cargo run -p colibri-cli -- eval examples/greeting.colibri
 ```
 
-> `colibri check` valida **estructura de bloques y template**, no tipos Rust. `colibri render` emite HTML estático o resuelve `{expr}` con `--bind key=value`; no evalúa Rust y los eventos siguen siendo error de SSR. El compilador y el plugin Vite todavía no están implementados.
+> `colibri check` valida **estructura de bloques y template**, no tipos Rust. `colibri render` emite HTML estático o resuelve `{expr}` con `--bind key=value`; no evalúa Rust. `colibri build` emite el programa Rust y `colibri eval` lo compila y ejecuta con rustc (no es sandbox; los eventos siguen fuera del SSR). El plugin Vite todavía no está implementado.
 
 ## Proyecto
 
 ```text
 crates/
   colibri-core/       Signals, memo, effects, scheduler y scopes
+  colibri-codegen/    SFC a programa Rust ejecutable
   colibri-ir/         Modelo de representación de componentes
   colibri-macros/     Macro proc `view!` para la ruta Rust
   colibri-parser/     Lectura de componentes de archivo único
@@ -89,6 +92,10 @@ AGENTS.md                  Instrucciones técnicas para colaboradores y agentes
 3. **Interoperabilidad:** estándares web, SCSS, Vite y módulos JS cuando corresponda.
 4. **Separación de compilador y runtime:** la herramienta de desarrollo no debe convertirse en coste del usuario final.
 5. **No crear otro React por inercia:** revisar React, Solid, Svelte, Qwik, Leptos, Dioxus, Astro y Yew con espíritu crítico.
+
+## Calidad
+
+El código nuevo sigue el baseline de Rust-teacher (repo local `teachers`) y se audita con su runner portátil. Detalles y deuda pendiente en [quality.md](docs/quality.md).
 
 ## Implementación por agentes
 

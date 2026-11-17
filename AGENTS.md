@@ -32,5 +32,16 @@ La base del repositorio es **experimental**. No existe compilador funcional de `
 ## Definition of Done
 Contrato documentado + casos felices/negativos + pruebas reproducibles + calidad/seguridad + ausencia de regresiones conocidas + handoff. Sin esto, marcar "parcial", no "finalizado".
 
+## Calidad externa (teachers)
+
+El baseline estricto de `C:\Users\jdsal\Documents\Programming-personal\teachers\Rust-teacher` aplica al código nuevo: `missing_docs`, sin `unwrap`/`expect`/`panic` en librería, ≤40 líneas/función, complejidad ≤8, ≤4 parámetros y ancho 100. Antes de publicar:
+
+```powershell
+cd C:\Users\jdsal\Documents\Programming-personal\teachers
+python tools/lint.py --project "C:\Users\jdsal\Documents\Programming-personal\colibri"
+```
+
+Estado y excepciones: [`docs/quality.md`](docs/quality.md).
+
 ## Prioridad
 M01 parser de template → M02 SFC a IR → M03 Rust a IR → M04 pruebas de paridad. El motor reactivo (M05) puede investigarse en paralelo de forma aislada. Vite/HMR (M08) viene más tarde. Ver `docs/roadmap.md`.

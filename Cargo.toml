@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/colibri-core", "crates/colibri-ir", "crates/colibri-macros", "crates/colibri-parser", "crates/colibri-ssr", "crates/colibri-cli"]
+members = ["crates/colibri-codegen", "crates/colibri-core", "crates/colibri-ir", "crates/colibri-macros", "crates/colibri-parser", "crates/colibri-ssr", "crates/colibri-cli"]
 
 [workspace.package]
 edition = "2021"

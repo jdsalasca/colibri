@@ -32,4 +32,5 @@
 | ¿Cómo funcionan señales y efectos? | [Reactividad](spec/reactivity.md) |
 | ¿Cómo se renderiza? | [Renderizado](spec/rendering.md) |
 | ¿Cómo integro Rust, Vite y Sass? | [Toolchain](spec/toolchain.md) |
+| ¿Qué estándar de calidad aplico? | [Calidad](quality.md) |
 | ¿Qué hago a continuación? | [Backlog](tasks/README.md) |
