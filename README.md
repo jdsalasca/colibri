@@ -24,8 +24,8 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 | `colibri-parser` | Prototipo | Scanner SFC y AST de template con spans (M01); no compila |
 | `colibri-ir` | Prototipo | IR semántica con spans y lowering SFC→IR (M02) |
 | `colibri-macros` | Prototipo | `view!` estático a IR; dinámico/eventos fallan en compilación (M03) |
-| `colibri-ssr` | Prototipo | Render HTML estático seguro con errores por span (M02) |
-| `colibri-cli` | Prototipo | `check` estructural y `render` HTML estático |
+| `colibri-ssr` | Prototipo | Render HTML estático seguro y SSR dinámico con resolver explícito y errores por span (M02/M06a) |
+| `colibri-cli` | Prototipo | `check`, `render` estático y `render --bind key=value` |
 
 ## Dos sintaxis, el mismo IR
 
@@ -51,9 +51,10 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo run -p colibri-cli -- check examples/counter.colibri
 cargo run -p colibri-cli -- render examples/static-card.colibri
+cargo run -p colibri-cli -- render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida
 ```
 
-> `colibri check` valida **estructura de bloques y template**, no tipos Rust. `colibri render` sólo soporta plantillas estáticas: una interpolación o un evento produce un diagnóstico con span. El compilador y el plugin Vite todavía no están implementados.
+> `colibri check` valida **estructura de bloques y template**, no tipos Rust. `colibri render` emite HTML estático o resuelve `{expr}` con `--bind key=value`; no evalúa Rust y los eventos siguen siendo error de SSR. El compilador y el plugin Vite todavía no están implementados.
 
 ## Proyecto
 

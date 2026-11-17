@@ -1,7 +1,9 @@
-//! Restricted static HTML renderer; dynamic expressions are not evaluated.
+//! Restricted HTML renderer for the semantic IR.
 //!
-//! Every rejected construct returns a `RenderError` with the source span of the
-//! offending node so callers can point at the component source.
+//! `render_static` rejects dynamic nodes. `render_dynamic` accepts an explicit
+//! resolver from expression text to value; the framework still never evaluates
+//! Rust and always escapes text and attributes. Every rejection carries the
+//! source span of the offending node.
 
 use colibri_ir::{Attribute, Element, Node, SourceSpan};
 use std::error::Error;
@@ -10,6 +12,7 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderErrorKind {
     DynamicContent,
+    MissingValue,
     InvalidTag,
     InvalidAttribute,
     UnsafeAttribute,
@@ -21,6 +24,7 @@ impl RenderErrorKind {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::DynamicContent => "dynamic-content",
+            Self::MissingValue => "missing-value",
             Self::InvalidTag => "invalid-tag",
             Self::InvalidAttribute => "invalid-attribute",
             Self::UnsafeAttribute => "unsafe-attribute",
@@ -34,6 +38,7 @@ impl RenderErrorKind {
             Self::DynamicContent => {
                 "static rendering cannot evaluate dynamic content or event handlers"
             }
+            Self::MissingValue => "dynamic expression has no value in this render",
             Self::InvalidTag => "tag is not allowed in static rendering",
             Self::InvalidAttribute => "attribute name is not valid",
             Self::UnsafeAttribute => "attribute is unsafe in static rendering",
@@ -115,23 +120,46 @@ fn is_void(tag: &str) -> bool {
     )
 }
 
-fn render_into(node: &Node, output: &mut String) -> Result<(), RenderError> {
+/// Static rendering rejects dynamics; dynamic rendering resolves them.
+enum Mode<'a> {
+    Static,
+    Dynamic(&'a mut dyn FnMut(&str) -> Option<String>),
+}
+
+fn resolve(
+    mode: &mut Mode<'_>,
+    expression: &str,
+    span: &SourceSpan,
+) -> Result<String, RenderError> {
+    match mode {
+        Mode::Static => Err(RenderError::new(RenderErrorKind::DynamicContent, span)),
+        Mode::Dynamic(resolver) => resolver(expression)
+            .ok_or_else(|| RenderError::new(RenderErrorKind::MissingValue, span)),
+    }
+}
+
+fn render_into(node: &Node, output: &mut String, mode: &mut Mode<'_>) -> Result<(), RenderError> {
     match node {
         Node::Text { value, .. } => output.push_str(&escape_html(value)),
-        Node::DynamicText { span, .. } => {
-            return Err(RenderError::new(RenderErrorKind::DynamicContent, span));
+        Node::DynamicText { expression, span } => {
+            let value = resolve(mode, expression, span)?;
+            output.push_str(&escape_html(&value));
         }
         Node::Fragment { children, .. } => {
             for child in children {
-                render_into(child, output)?;
+                render_into(child, output, mode)?;
             }
         }
-        Node::Element(element) => render_element(element, output)?,
+        Node::Element(element) => render_element(element, output, mode)?,
     }
     Ok(())
 }
 
-fn render_element(element: &Element, output: &mut String) -> Result<(), RenderError> {
+fn render_element(
+    element: &Element,
+    output: &mut String,
+    mode: &mut Mode<'_>,
+) -> Result<(), RenderError> {
     let tag = element.tag.to_ascii_lowercase();
     if element.tag.bytes().any(|byte| byte.is_ascii_uppercase()) {
         return Err(RenderError::new(
@@ -166,12 +194,12 @@ fn render_element(element: &Element, output: &mut String) -> Result<(), RenderEr
     output.push('<');
     output.push_str(&element.tag);
     for attribute in &element.attributes {
-        render_attribute(attribute, output)?;
+        render_attribute(attribute, output, mode)?;
     }
     output.push('>');
     if !is_void(&tag) {
         for child in &element.children {
-            render_into(child, output)?;
+            render_into(child, output, mode)?;
         }
         output.push_str("</");
         output.push_str(&element.tag);
@@ -180,15 +208,36 @@ fn render_element(element: &Element, output: &mut String) -> Result<(), RenderEr
     Ok(())
 }
 
-fn render_attribute(attribute: &Attribute, output: &mut String) -> Result<(), RenderError> {
-    let (name, value, span) = match attribute {
-        Attribute::Static { name, value, span } => (name, Some(value), span),
-        Attribute::Boolean { name, span } => (name, None, span),
-        Attribute::Dynamic { span, .. } | Attribute::Event { span, .. } => {
-            return Err(RenderError::new(RenderErrorKind::DynamicContent, span));
+fn render_attribute(
+    attribute: &Attribute,
+    output: &mut String,
+    mode: &mut Mode<'_>,
+) -> Result<(), RenderError> {
+    match attribute {
+        Attribute::Static { name, value, span } => {
+            render_named_attribute(name, Some(value), span, output)
         }
-    };
+        Attribute::Boolean { name, span } => render_named_attribute(name, None, span, output),
+        Attribute::Dynamic {
+            name,
+            expression,
+            span,
+        } => {
+            let value = resolve(mode, expression, span)?;
+            render_named_attribute(name, Some(&value), span, output)
+        }
+        Attribute::Event { span, .. } => {
+            Err(RenderError::new(RenderErrorKind::DynamicContent, span))
+        }
+    }
+}
 
+fn render_named_attribute(
+    name: &str,
+    value: Option<&str>,
+    span: &SourceSpan,
+    output: &mut String,
+) -> Result<(), RenderError> {
     let lower = name.to_ascii_lowercase();
     if !valid_name(name) {
         return Err(RenderError::new(RenderErrorKind::InvalidAttribute, span));
@@ -226,10 +275,27 @@ fn render_attribute(attribute: &Attribute, output: &mut String) -> Result<(), Re
     Ok(())
 }
 
-/// Render a static IR tree as safe HTML in the supported subset.
+/// Render a static IR tree as safe HTML. Dynamic nodes are rejected.
 pub fn render_static(node: &Node) -> Result<String, RenderError> {
+    let mut mode = Mode::Static;
     let mut result = String::new();
-    render_into(node, &mut result)?;
+    render_into(node, &mut result, &mut mode)?;
+    Ok(result)
+}
+
+/// Render an IR tree resolving dynamic expressions through `resolver`.
+///
+/// `resolver` receives the expression text stored in the IR (`"user.name"`,
+/// `"count"`, ...) and returns the value for this render. Missing values are a
+/// `MissingValue` diagnostic, never an empty string. Text and attributes are
+/// escaped; URL and attribute safety rules still apply.
+pub fn render_dynamic<F>(node: &Node, mut resolver: F) -> Result<String, RenderError>
+where
+    F: FnMut(&str) -> Option<String>,
+{
+    let mut mode = Mode::Dynamic(&mut resolver as &mut dyn FnMut(&str) -> Option<String>);
+    let mut result = String::new();
+    render_into(node, &mut result, &mut mode)?;
     Ok(result)
 }
 
@@ -258,6 +324,13 @@ mod tests {
         Node::Text {
             value: value.into(),
             span: span(0, 1),
+        }
+    }
+
+    fn dynamic_text(expression: &str) -> Node {
+        Node::DynamicText {
+            expression: expression.into(),
+            span: span(3, 10),
         }
     }
 
@@ -319,10 +392,7 @@ mod tests {
 
     #[test]
     fn does_not_evaluate_dynamic_content() {
-        let node = Node::DynamicText {
-            expression: "count".into(),
-            span: span(3, 10),
-        };
+        let node = dynamic_text("count");
         let error = render_static(&node).unwrap_err();
         assert_eq!(error.kind, RenderErrorKind::DynamicContent);
         assert_eq!(error.span, span(3, 10));
@@ -341,5 +411,81 @@ mod tests {
             render_static(&void).unwrap_err().kind,
             RenderErrorKind::InvalidVoidElement
         );
+    }
+
+    #[test]
+    fn renders_dynamic_text_and_attributes() {
+        let node = element(
+            "p",
+            vec![Attribute::Dynamic {
+                name: "title".into(),
+                expression: "label".into(),
+                span: span(0, 1),
+            }],
+            vec![dynamic_text("name")],
+        );
+        let html = render_dynamic(&node, |expression| match expression {
+            "name" => Some("Ada".into()),
+            "label" => Some("saludo".into()),
+            _ => None,
+        })
+        .unwrap();
+        assert_eq!(html, "<p title=\"saludo\">Ada</p>");
+    }
+
+    #[test]
+    fn escapes_dynamic_values() {
+        let node = element(
+            "p",
+            vec![Attribute::Dynamic {
+                name: "title".into(),
+                expression: "label".into(),
+                span: span(0, 1),
+            }],
+            vec![dynamic_text("name")],
+        );
+        let html = render_dynamic(&node, |_| Some("<script>\"x\"</script>".into())).unwrap();
+        assert_eq!(
+            html,
+            "<p title=\"&lt;script&gt;&quot;x&quot;&lt;/script&gt;\">&lt;script&gt;&quot;x&quot;&lt;/script&gt;</p>"
+        );
+    }
+
+    #[test]
+    fn missing_dynamic_values_are_reported() {
+        let error = render_dynamic(&dynamic_text("name"), |_| None).unwrap_err();
+        assert_eq!(error.kind, RenderErrorKind::MissingValue);
+        assert_eq!(error.span, span(3, 10));
+    }
+
+    #[test]
+    fn dynamic_urls_are_still_validated() {
+        let node = element(
+            "a",
+            vec![Attribute::Dynamic {
+                name: "href".into(),
+                expression: "url".into(),
+                span: span(5, 9),
+            }],
+            vec![],
+        );
+        let error = render_dynamic(&node, |_| Some(" java\nscript:alert(1)".into())).unwrap_err();
+        assert_eq!(error.kind, RenderErrorKind::UnsafeAttribute);
+        assert_eq!(error.span, span(5, 9));
+    }
+
+    #[test]
+    fn events_are_not_rendered_server_side() {
+        let node = element(
+            "button",
+            vec![Attribute::Event {
+                name: "click".into(),
+                handler: "go".into(),
+                span: span(2, 4),
+            }],
+            vec![],
+        );
+        let error = render_dynamic(&node, |_| Some("x".into())).unwrap_err();
+        assert_eq!(error.kind, RenderErrorKind::DynamicContent);
     }
 }

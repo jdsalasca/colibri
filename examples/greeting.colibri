@@ -1,0 +1,6 @@
+<template>
+  <article class="greeting">
+    <h1>Hola {name}</h1>
+    <p>{message}</p>
+  </article>
+</template>

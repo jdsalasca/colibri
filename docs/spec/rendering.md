@@ -1,6 +1,6 @@
 # Renderizado, DOM, SSR y activación cliente
 
-**Estado:** propuesta; el renderer actual sólo soporta un subconjunto estático y seguro.
+**Estado:** MVP estático implementado y primera rebanada de SSR dinámico con resolver explícito (M06a, [ADR 0007](../adr/0007-dynamic-ssr-resolver.md)). Evaluación Rust real, streaming e hidratación siguen pendientes.
 
 ## Modos objetivo
 | Modo | Transferencia cliente | Uso típico |
@@ -28,6 +28,19 @@ Ningún modo obliga a cargar WASM. El coste de instanciar módulos y el puente J
 3. **DOM mínimo:** crear/montar/desmontar nodos, textos y atributos desde bindings; observabilidad del número de mutaciones.
 4. **Islas:** manifest de rutas/símbolos y chunking medido; activación por interacción o visibilidad según estrategia explícita.
 5. **Resumabilidad:** línea experimental separada; no prometer serialización arbitraria de closures/objetos Rust.
+
+## SSR dinámico con resolver (M06a)
+~~~rust
+let html = render_dynamic(&ir.root, |expression| match expression {
+    "name" => Some("Ada".to_string()),
+    _ => None,
+})?;
+~~~
+- El resolver recibe el texto de la expresión del IR; no se evalúa Rust.
+- Un valor ausente es `MissingValue`, nunca cadena vacía.
+- Texto y atributos se escapan; URLs y atributos peligrosos se validan igual que en estático.
+- `on:evento` sigue siendo error de SSR hasta M07.
+- El CLI ofrece `--bind key=value` para probar el contrato.
 
 ## Seguridad mínima
 - Separar `SafeHtml` revisado y literal de `String` ordinario, si en el futuro existe una API de HTML sin escape.

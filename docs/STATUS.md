@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-16. M00–M04 y M05 se validaron en GitHub Actions para el PR #3 (commit `5dadebd45d619aaeb73f4fd840c8a51bcbdf655d`) con **55 pruebas**. El endurecimiento M05 (ciclos recuperables, `stats()`, `Scope::dispose`) pasó CI en `main` y `develop` para `8eb70c2`: [main run 43991479155](https://github.com/jdsalasca/colibri/actions/runs/43991479155), [develop run 43991479721](https://github.com/jdsalasca/colibri/actions/runs/43991479721), **58 pruebas**. No se ha probado navegador ni rendimiento comparativo.
+Actualizado: 2026-11-16. M00–M04 y M05 se validaron en GitHub Actions para el PR #3 (commit `5dadebd45d619aaeb73f4fd840c8a51bcbdf655d`) con **55 pruebas**. El endurecimiento M05 pasó CI en `main`/`develop` para `8eb70c2` (58 pruebas). Sobre esa base se añadió la primera rebanada de M06 (SSR dinámico con resolver): **68 pruebas en local**, pendiente de CI para el nuevo commit. No se ha probado navegador ni rendimiento comparativo.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
@@ -8,11 +8,11 @@ Actualizado: 2026-11-16. M00–M04 y M05 se validaron en GitHub Actions para el 
 | `colibri-core` | `Signal<T>`, `Scope`; tracking sincrónico, `use_state`, `use_memo` eager, `use_effect`, cleanup, `batch`; ciclos recuperables con `take_error()`, `stats()` y `Scope::dispose` (M05) | browser scheduler, tracking async, memo lazy, concurrencia, DOM |
 | `colibri-parser` | scanner SFC, AST con spans, atributos e interpolaciones; límites de tamaño/profundidad; lowering estático a IR (M01–M02) | validación integral de expresiones Rust, HTML5 completo, entidades, SCSS |
 | `colibri-ir` | IR con spans: texto, texto dinámico, elementos, fragmentos, atributos y eventos; lowering SFC→IR (M02) | componentes/calls, props, control de flujo, análisis de dependencias, codegen |
-| `colibri-ssr` | render estático seguro desde IR; booleanos, void, allowlist de URLs y errores con span (M02) | SSR dinámico, streaming, islas, hidratación |
-| `colibri-cli` | `check` estructural y `render` HTML estático | compilación Rust/WASM, dev/build, preview, benchmark |
+| `colibri-ssr` | render estático seguro y SSR dinámico con resolver explícito; escape, URL allowlist, booleanos, void y `MissingValue` con span (M02/M06a) | evaluación Rust server, eventos SSR, streaming, islas, hidratación |
+| `colibri-cli` | `check`, `render` estático y `render --bind key=value` para expresiones | compilación Rust/WASM, dev/build, preview, benchmark |
 | `colibri-macros` | `view!` estático con errores de compilación para dinámico/eventos (M03) | `#[component]`, props, children, eventos, reactividad, codegen |
 | `packages/vite-plugin-colibri` | README de intención | plugin ejecutable |
-| `examples/` | SFC estático y macro Rust ejecutables; ejemplo nativo de reactividad en `colibri-core/examples/` | UI browser/WASM ejecutable |
+| `examples/` | SFC estático, SFC dinámico con `--bind` y macro Rust ejecutables; ejemplo nativo de reactividad en `colibri-core/examples/` | UI browser/WASM ejecutable |
 
 ## Limitaciones y riesgos conocidos
 - El parser actual busca cierres de etiquetas de forma simple: no es seguro para HTML arbitrario ni etiquetas embebidas, comentarios complejos o bloques Rust que incluyan textos coincidentes.
@@ -23,6 +23,7 @@ Actualizado: 2026-11-16. M00–M04 y M05 se validaron en GitHub Actions para el 
 - Los archivos de ejemplo `Counter.rs` y `Counter.colibri` son **sintaxis objetivo**, no una implementación compilable.
 - No existe todavía evidencia de ventajas respecto a React, Solid, Svelte, Leptos o JS.
 - El pipeline estático no evalúa expresiones ni eventos y no decodifica entidades HTML de entrada (`&amp;` se trata como texto literal). Los comentarios HTML se descartan en lowering.
+- El SSR dinámico usa un resolver del host; no evalúa Rust, no renderiza eventos y no hace streaming ni hidratación ([ADR 0007](adr/0007-dynamic-ssr-resolver.md)).
 - La ruta Rust usa spans sintéticos (`file!()`, `0..0`) porque los proc macros estables no exponen offsets de byte; los errores de sintaxis sí apuntan al token real.
 
 ## Registro de verificación
@@ -30,9 +31,10 @@ Actualizado: 2026-11-16. M00–M04 y M05 se validaron en GitHub Actions para el 
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | Local: 58 pruebas (13 core). CI del PR #3: 55 pruebas |
+| `cargo test --workspace` | Local: 68 pruebas (13 core, 10 SSR, 5 pipeline dinámico). CI del PR #3: 55 pruebas; `8eb70c2`: 58 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
+| `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
 | CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `8eb70c2`: [run 43991479155](https://github.com/jdsalasca/colibri/actions/runs/43991479155) / [run 43991479721](https://github.com/jdsalasca/colibri/actions/runs/43991479721) |
 | Browser/WASM | No implementado |
@@ -45,6 +47,10 @@ Actualizar **únicamente** con resultados y enlaces al commit/CI. La sección es
 Se integra un subsistema de estado/derivaciones/efectos independiente del navegador, con pruebas de tracking dinámico, igualdad de Memo, batch, cleanup, 10.000 scopes y 10.000 ciclos signal+memo+effect. El contrato de M05 queda cubierto, incluidos ciclos recuperables (`take_error`), `stats()` y `Scope::dispose`. **No cerrar el ecosistema:** quedan riesgos de M07/M10 (reconciliación DOM, panic boundary, memoria por suscripción, benchmark WASM/Chromium).
 
 Investigación: [Rust web performance](research/2026-11-rust-web-performance.md); [comparación de precedentes](../precedentes/reactivity-and-web-performance.md). Las cifras de rendimiento aún no existen.
+
+## Avance M06a — SSR dinámico con resolver
+
+`render_dynamic` acepta un resolver del host para `{expr}` y atributos dinámicos. Escapa texto/atributos, mantiene URL allowlist y devuelve `MissingValue` con span si falta un valor. Los eventos siguen siendo error de SSR. El CLI expone `--bind key=value`. **No cierra M06:** falta evaluación Rust real, paridad dinámica con `view!`, streaming e hidratación. Ver [ADR 0007](adr/0007-dynamic-ssr-resolver.md).
 
 ### Entrega entre agentes
 
