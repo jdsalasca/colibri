@@ -4,7 +4,7 @@
 mod reactive;
 pub use reactive::{
     batch, effect_scope_active, take_error, untrack, use_effect, use_effect_with_cleanup, use_memo,
-    use_state, with_effect_scope, Effect, Memo, ReactiveError,
+    use_state, with_effect_scope, without_effect_scope, Effect, Memo, ReactiveError,
 };
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;

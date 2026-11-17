@@ -1,4 +1,4 @@
-use colibri_core::{use_effect, Effect};
+use colibri_core::{use_effect, without_effect_scope, Effect};
 use colibri_ssr::validate_attribute;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -376,6 +376,10 @@ pub fn attach_effects(view: View, effects: Vec<Effect>) -> View {
 
 /// Mount a view inside `container`. The returned handle owns effects/listeners.
 pub fn mount(view: View, container: Element) -> Result<MountHandle, JsValue> {
+    without_effect_scope(|| mount_inner(view, container))
+}
+
+fn mount_inner(view: View, container: Element) -> Result<MountHandle, JsValue> {
     let document = container
         .owner_document()
         .ok_or_else(|| JsValue::from_str("container must belong to a document"))?;

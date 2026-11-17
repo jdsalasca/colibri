@@ -29,6 +29,7 @@ Estado: **Aceptada** para reconciliación keyed inicial.
 - Reordenar preserva nodos, listeners y foco de las keys existentes.
 - **No se re-renderiza el contenido de una key existente.** Si el contenido cambia, debe venir de señales reactivas o la key debe incluir la versión del dato.
 - No hay diff de contenido ni estado local por key; sigue siendo una reconciliación de nivel lista.
+- La closure se evalúa completa en cada actualización: las vistas de claves existentes se construyen y descartan; sus effects se limpian al instante (sin fuga), pero arrancan y cancelan tareas inútilmente.
 - No hay hidratación SSR ni SFC cliente.
 - Sin tests de memoria a largo plazo; E2E cubre orden, identidad y foco.
 

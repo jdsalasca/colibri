@@ -153,6 +153,8 @@ let view = dom! { <ul><Keyed nodes={render}/></ul> };
 
 Una key existente **reutiliza sus nodos**; el contenido debe ser reactivo o la key debe cambiar cuando cambie el dato. Keys duplicadas se reportan y se descartan.
 
+La closure se evalúa entera en cada actualización: las vistas de claves existentes se construyen y se descartan. Sus effects se limpian al instante (sin fuga), pero un `use_async` de una clave existente arranca y se cancela sin publicar. Una factoría perezosa por clave queda pendiente.
+
 ### Listas y condicionales
 
 `<Dynamic nodes={closure}/>` reconstruye un subárbol cuando cambian las señales leídas:

@@ -74,7 +74,7 @@ pub fn TitleEffect(count: Signal<i32>) -> View {
 }
 ```
 
-Límite: la detección es sintáctica. Si el retorno es un alias o wrapper de `View`, conserva el handle o anota el retorno como `View`. Ver [ADR 0015](../adr/0015-component-effect-ownership.md).
+Límite: la detección es sintáctica. Si el retorno es un alias o wrapper de `View`, conserva el handle o anota el retorno como `View`. Ver [ADR 0015](../adr/0015-component-effect-ownership.md). No llames hooks (`use_async`, `use_effect`) dentro del callback de otro effect: van en el cuerpo del componente.
 
 ## Async y lazy
 

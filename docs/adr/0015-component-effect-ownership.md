@@ -16,6 +16,7 @@ Estado: **Aceptada** para el runtime DOM. Cierra el hallazgo #3 de Terra.
    - si el tipo de retorno termina sintácticamente en `View`, devuelve `colibri_dom::attach_effects(view, effects)`;
    - si el retorno es `Node` u otro, descarta los efectos (SSR no tiene ciclo de vida).
 5. `View::Scoped { view, effects }` entrega los efectos a `MountState` al montar; se limpian al soltar el `MountHandle`, igual que listeners.
+6. `without_effect_scope(f)` suspende el scope ambiental. `flush` y `mount` lo usan: los effects internos del renderer pertenecen al montaje, y un callback no hereda el scope del componente que casualmente se esté construyendo.
 
 ## Alternativas
 - Handle obligatorio: seguro, pero ruidoso y fácil de olvidar.
@@ -27,7 +28,9 @@ Estado: **Aceptada** para el runtime DOM. Cierra el hallazgo #3 de Terra.
 - Efectos creados fuera de un scope conservan el comportamiento anterior (viven mientras exista el handle).
 - Efecto observado en el demo: `TitleEffect` actualiza `document.title` (`Contador 0 → Contador 1`) sin guardar el `Effect` en ningún sitio.
 - **Límite**: la detección es sintáctica (`-> View`). Un alias (`type MyView = View`) o un wrapper no recibe scope automático; en ese caso hay que conservar el handle o anotar el retorno como `View`.
+- **Riesgo aceptado**: si un effect suelta su propio último handle durante su ejecución, el cleanup de esa pasada puede perderse (la cola del motor guarda `Weak`; solo ocurre en autodestrucción).
+- **No soportado**: llamar `use_async`/`use_effect` dentro del callback de otro effect. Los hooks van en el cuerpo del componente.
 
 ## Validación
-- `cargo test --workspace`: 86 pruebas (2 nuevas: clone sobrevive hasta el último handle; el scope mantiene y limpia efectos).
+- `cargo test --workspace`: 91 pruebas, incluidas cleanup con panic, scope suspendido y effects fuera del scope ambiental.
 - E2E Playwright/Chromium: título `Contador 0` al cargar y `Contador 1` tras incrementar; resto de la suite sigue verde.

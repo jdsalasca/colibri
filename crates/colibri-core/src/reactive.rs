@@ -136,9 +136,10 @@ struct EffectScopeGuard {
 impl Drop for EffectScopeGuard {
     fn drop(&mut self) {
         if self.active {
-            EFFECT_SCOPE.with(|scopes| {
-                scopes.borrow_mut().pop();
-            });
+            // Pop and destroy outside the borrow: a cleanup may create effects
+            // or ask for `effect_scope_active`, which would panic while borrowed.
+            let popped = EFFECT_SCOPE.with(|scopes| scopes.borrow_mut().pop());
+            drop(popped);
         }
     }
 }
@@ -173,6 +174,31 @@ fn register_effect(effect: &Effect) {
 /// outside a scope the task runs to completion and the caller keeps the handle.
 pub fn effect_scope_active() -> bool {
     EFFECT_SCOPE.with(|scopes| !scopes.borrow().is_empty())
+}
+
+struct ScopeRestore {
+    saved: Option<Vec<Vec<Effect>>>,
+}
+
+impl Drop for ScopeRestore {
+    fn drop(&mut self) {
+        let Some(saved) = self.saved.take() else {
+            return;
+        };
+        let leftover =
+            EFFECT_SCOPE.with(|scopes| std::mem::replace(&mut *scopes.borrow_mut(), saved));
+        drop(leftover);
+    }
+}
+
+/// Run `f` with the ambient component scope suspended.
+///
+/// The renderer uses this so its internal effects belong to the mount, not to a
+/// component that happens to be under construction.
+pub fn without_effect_scope<R>(f: impl FnOnce() -> R) -> R {
+    let saved = EFFECT_SCOPE.with(|scopes| std::mem::take(&mut *scopes.borrow_mut()));
+    let _guard = ScopeRestore { saved: Some(saved) };
+    f()
 }
 
 struct TrackingGuard;
@@ -233,6 +259,10 @@ fn flush() {
         return;
     }
     let _guard = FlushGuard;
+    // Effects run with the ambient scope suspended: a task started by a
+    // callback belongs to its real owner, not to a component being built.
+    let saved = EFFECT_SCOPE.with(|scopes| std::mem::take(&mut *scopes.borrow_mut()));
+    let _scope = ScopeRestore { saved: Some(saved) };
     let mut runs = 0usize;
     loop {
         let next = ENGINE.with(|engine| {
@@ -755,6 +785,69 @@ mod tests {
         let (inside, effects) = with_effect_scope(effect_scope_active);
         assert!(inside);
         assert!(effects.is_empty());
+        assert!(!effect_scope_active());
+    }
+
+    #[test]
+    fn suspended_scope_ignores_effects_created_inside() {
+        let signal = use_state(0);
+        let runs = Rc::new(Cell::new(0));
+        let (active, effects) = with_effect_scope(|| without_effect_scope(effect_scope_active));
+        assert!(!active);
+        assert!(effects.is_empty());
+
+        let ((), effects) = with_effect_scope(|| {
+            without_effect_scope(|| {
+                let signal = signal.clone();
+                let runs = runs.clone();
+                use_effect(move || {
+                    signal.get();
+                    runs.set(runs.get() + 1);
+                });
+            });
+        });
+        assert!(effects.is_empty());
+        signal.set(1);
+        assert_eq!(runs.get(), 1);
+        assert!(!effect_scope_active());
+    }
+
+    #[test]
+    fn effects_run_outside_the_ambient_scope() {
+        let trigger = use_state(0);
+        let observed = Rc::new(Cell::new(true));
+        let effect = {
+            let trigger = trigger.clone();
+            let observed = Rc::clone(&observed);
+            use_effect(move || {
+                trigger.get();
+                observed.set(effect_scope_active());
+            })
+        };
+        let ((), effects) = with_effect_scope(|| trigger.set(1));
+        assert!(!observed.get());
+        assert!(effects.is_empty());
+        drop(effect);
+    }
+
+    #[test]
+    fn panicking_scope_runs_cleanups_outside_the_borrow() {
+        let cleaned = Rc::new(Cell::new(false));
+        let marker = Rc::clone(&cleaned);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            with_effect_scope(|| {
+                use_effect_with_cleanup(move || {
+                    let marker = Rc::clone(&marker);
+                    Box::new(move || {
+                        let _ = effect_scope_active();
+                        marker.set(true);
+                    })
+                });
+                panic!("boom");
+            });
+        }));
+        assert!(result.is_err());
+        assert!(cleaned.get());
         assert!(!effect_scope_active());
     }
 
