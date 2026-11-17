@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-16. M00–M07 parcial (DOM/WASM, async y lazy) pasaron CI en `f2ff960`: 82 pruebas; con `use_async`/`use_lazy` son **83 en local**, pendiente de CI. El demo Chrome muestra `0→1`, doble `0→2` y `cargando → 42 manuales listos`, sin errores. ManualOps (Axum + Colibrí) sigue validado. No se ha probado rendimiento ni hidratación SSR.
+Actualizado: 2026-11-16. M00–M07 parcial (DOM/WASM, async y lazy) pasaron CI en `9ede57a`: **83 pruebas**, build WASM y demo Chrome (`0→1`, doble `0→2`, `cargando → 42 manuales listos`, sin errores). ManualOps (Axum + Colibrí) sigue validado con 5 tests y HTTP real. No se ha probado rendimiento ni hidratación SSR.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
@@ -36,7 +36,7 @@ Actualizado: 2026-11-16. M00–M07 parcial (DOM/WASM, async y lazy) pasaron CI e
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | Local: 83 pruebas. CI `f2ff960`: 82 |
+| `cargo test --workspace` | CI `9ede57a`: 83 pruebas, 0 fallos. Local: 83 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
@@ -47,7 +47,7 @@ Actualizado: 2026-11-16. M00–M07 parcial (DOM/WASM, async y lazy) pasaron CI e
 | Chrome/Playwright | Contador: `0 → 1`, `doble 0 → 2`, `cargando → 42 manuales listos`, sin errores; captura `counter.png` |
 | Audit portátil de `teachers` | fmt + clippy + README + `expect` limpios; quedan 4 archivos >400 líneas (deuda documentada en [quality](quality.md)) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
-| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `f2ff960`: [run 44000546147](https://github.com/jdsalasca/colibri/actions/runs/44000546147) / [run 44000546225](https://github.com/jdsalasca/colibri/actions/runs/44000546225) (validate + wasm) |
+| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `9ede57a`: [run 44002475900](https://github.com/jdsalasca/colibri/actions/runs/44002475900) / [run 44002475523](https://github.com/jdsalasca/colibri/actions/runs/44002475523) (validate + wasm) |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |
 
