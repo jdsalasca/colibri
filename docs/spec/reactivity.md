@@ -1,6 +1,6 @@
 # Contrato de reactividad y ciclo de vida
 
-**Estado:** propuesta. Existe sólo Signal explícito + Scope; autotracking, Memo, Effect y Scheduler pendientes.
+**Estado:** contrato objetivo con prototipo parcial en PR #2: `use_state`, tracking sincrónico, `use_memo` eager, `use_effect`, `use_effect_with_cleanup`, `batch` y cleanup por Scope. No está implementado un scheduler browser/concurrente ni reactividad asíncrona. Ver `docs/STATUS.md`.
 
 ## Modelo
 - `Signal<T>`: lectura/actualización de estado; operaciones definidas según ownership de Rust.
@@ -20,6 +20,20 @@
 8. **Ambiente:** single-threaded como MVP; no prometer `Send + Sync` universal ni threads WASM sin infraestructura.
 9. **Ownership:** no introducir leaks por `Rc` cíclicos; preferir `Weak` para enlaces al padre.
 10. **Observabilidad:** hooks de instrumentación para conteo de subscripciones, efectos y operaciones, sin coste alto en release.
+
+## API Rust experimental (M05)
+
+```rust
+use colibri_core::{batch, use_effect, use_memo, use_state, Scope};
+let price = use_state(10);
+let total = { let price = price.clone(); use_memo(move || price.get() * 2) };
+let mut scope = Scope::new();
+let effect = { let total = total.clone(); use_effect(move || println!("{}", total.get())) };
+scope.track_effect(effect);
+batch(|| { price.set(11); price.set(12); });
+```
+
+**Nota semántica:** esta no es la API de Hooks React y no depende de orden de invocación; depende de la vida útil de handles de Rust. La ejecución inicial de effect es inmediata, el memo recalcula eager, sólo se rastrean lecturas sincrónicas; suscriptores manuales siguen siendo síncronos incluso durante batch. Los ciclos reactivos están limitados por un panic diagnóstico, no por un error recuperable aún. No asumir paridad de timing con React, Solid ni Leptos.
 
 ## Contrato observable MVP
 - `signal.get()` devuelve último valor confirmado.

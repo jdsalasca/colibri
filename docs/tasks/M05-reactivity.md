@@ -25,3 +25,9 @@ No construir VDOM, DOM bindings, arquitectura multi-thread Wasm o optimizaciones
 
 ## Handoff
 Semántica de orden y batching escrita, benchmark de overhead de suscripción y riesgos para el adaptador M07.
+
+## Avance parcial en PR #2
+
+Implementación experimental aislada: `use_state`, `use_memo` eager con `PartialEq`, `use_effect` sincrónico, cleanup, batching, branch-sensitive dependency tracking, cola con memos antes que effects, pruebas unitarias. **No marcar M05 finalizado**: falta revisión profunda de reentrancia, recuperación de pánicos/ciclos, scheduler browser, evaluación de costes memoria y APIs estables. 
+
+Investigación: [Rust/WASM performance](../research/2026-11-rust-web-performance.md).
