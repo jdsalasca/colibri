@@ -12,7 +12,8 @@ Faltaban dos semánticas React pedidas explícitamente: datos asíncronos con es
 2. `colibri_dom::use_async(future)` (sólo `wasm32`):
    - crea `Signal<Resource<T>>` en `Loading`;
    - `wasm_bindgen_futures::spawn_local` ejecuta el future;
-   - al terminar hace `set(Ready/​Failed)`;
+   - al terminar, `settle_resource` escribe `Ready`/`Failed` salvo que el owner esté cancelado;
+   - dentro de un componente (`-> View`), un efecto de scope marca la cancelación al desmontar;
    - los efectos del DOM actualizan el texto/atributo.
 3. `colibri-core::Lazy<T>` + `use_lazy(compute)`:
    - cálculo al primer `get`, cacheado para siempre;
@@ -28,12 +29,13 @@ Faltaban dos semánticas React pedidas explícitamente: datos asíncronos con es
 
 ## Consecuencias
 - `Resource` es genérico y sin dependencias de browser; `use_async` sólo existe en `colibri-dom` wasm.
-- No hay cancelación al desmontar: el future sigue y hace `set` sobre una señal que puede quedar sin observadores. No rompe memoria, pero no es cancelación cooperativa.
+- Cancelación **cooperativa**: al desmontar se marca el flag y el resultado tardío se descarta (`settle_resource`). El future sigue corriendo hasta completar; no se aborta la tarea de JS. Fuera de un componente no hay cancelación.
 - No hay `Suspense` ni streaming; el estado inicial es `Loading` y el DOM se actualiza al completar.
 - `Lazy` no se invalida; si el valor depende de estado cambiante, usa `use_memo`.
 - `Lazy` es single-thread y no promete `Send + Sync`.
 
 ## Validación
 - Unit test de `Lazy`: cómputo una vez, handles clonados comparten.
+- Unit test de `settle_resource`: un resultado cancelado no escribe `Ready`/`Failed`.
 - Chrome/WASM: texto inicial `cargando catálogo…`, luego `42 manuales listos`; click `0→1`, doble `0→2`; cero errores de consola.
-- 83 pruebas de host; CI wasm compila el ejemplo.
+- 88 pruebas de host; CI wasm compila el ejemplo.

@@ -3,8 +3,8 @@
 //! Browser rendering, async tracking and hydration are still unimplemented.
 mod reactive;
 pub use reactive::{
-    batch, take_error, untrack, use_effect, use_effect_with_cleanup, use_memo, use_state,
-    with_effect_scope, Effect, Memo, ReactiveError,
+    batch, effect_scope_active, take_error, untrack, use_effect, use_effect_with_cleanup, use_memo,
+    use_state, with_effect_scope, Effect, Memo, ReactiveError,
 };
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
@@ -30,6 +30,24 @@ pub enum Resource<T> {
     Ready(T),
     /// The request failed with a message.
     Failed(String),
+}
+
+/// Write an async outcome into `target` unless its owner was cancelled.
+///
+/// Cancellation is cooperative: the future still runs, but a stale result never
+/// reaches the signal (and therefore never touches a detached DOM tree).
+pub fn settle_resource<T: Clone + 'static>(
+    target: &Signal<Resource<T>>,
+    cancelled: &Cell<bool>,
+    result: Result<T, String>,
+) {
+    if cancelled.get() {
+        return;
+    }
+    target.set(match result {
+        Ok(value) => Resource::Ready(value),
+        Err(message) => Resource::Failed(message),
+    });
 }
 
 pub fn stats() -> RuntimeStats {
@@ -282,6 +300,19 @@ pub fn use_lazy<T: Clone + 'static>(compute: impl Fn() -> T + 'static) -> Lazy<T
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn settle_resource_ignores_cancelled_results() {
+        let state = Signal::new(Resource::<i32>::Loading);
+        let cancelled = Cell::new(false);
+        settle_resource(&state, &cancelled, Ok(7));
+        assert_eq!(state.get(), Resource::Ready(7));
+        cancelled.set(true);
+        settle_resource(&state, &cancelled, Ok(9));
+        assert_eq!(state.get(), Resource::Ready(7));
+        settle_resource(&state, &cancelled, Err("late".to_string()));
+        assert_eq!(state.get(), Resource::Ready(7));
+    }
 
     #[test]
     fn subscriptions_are_notified_and_removed() {

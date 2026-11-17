@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-17. M00-M07 parcial (DOM/WASM, async, lazy, Dynamic, Keyed y ownership de effects) pasaron CI en `021c99d`/`528cb01`; el ownership de effects está **en local con 86 pruebas** y pendiente de CI. E2E Playwright/Chromium: `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, keyed `A,B,C→C,B,A` con foco y título `Contador 0→1`. Terra: 7 de 8 hallazgos aplicados. ManualOps (Axum + Colibrí) sigue validado. No se ha probado rendimiento ni hidratación SSR.
+Actualizado: 2026-11-17. M00-M07 parcial (DOM/WASM, async, lazy, Dynamic, Keyed, ownership de effects y cancelación cooperativa) pasaron CI en `c54408d` para effects; la cancelación de `use_async` está **en local con 88 pruebas** y pendiente de CI. E2E Playwright/Chromium: `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, keyed `A,B,C→C,B,A` con foco y título `Contador 0→1`. Terra: 8 de 8 hallazgos aplicados. ManualOps (Axum + Colibrí) sigue validado. No se ha probado rendimiento ni hidratación SSR.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
@@ -36,7 +36,7 @@ Actualizado: 2026-11-17. M00-M07 parcial (DOM/WASM, async, lazy, Dynamic, Keyed 
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | Local: 86 pruebas, 0 fallos. CI anterior `528cb01`: 84 |
+| `cargo test --workspace` | Local: 88 pruebas, 0 fallos. CI `c54408d`: 86 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
@@ -84,7 +84,7 @@ Dashboard de manuales internos con Axum + componentes Colibrí, sin JavaScript:
 
 `colibri-dom` (wasm32) monta un `View`, actualiza bindings con effects y registra eventos. Los effects de un componente `-> View` los posee el montaje: `#[component]` los captura con `with_effect_scope` y `View::Scoped` los libera al desmontar. `Dynamic` reconstruye condicionales; `Keyed` reordena preservando nodos/foco. `use_async` añade `Resource<T>`; `use_lazy` cachea un cálculo. El demo usa `use_state`, `use_memo`, `use_async`, `Dynamic`, `Keyed`, `TitleEffect`, `Panel` y eventos; E2E CI verifica contador, async, condicional `1→0→1`, keyed `A,B,C→C,B,A`, foco y título `Contador 0→1`. Ver [ADR 0011](adr/0011-dom-runtime-mvp.md), [0012](adr/0012-async-resource-lazy.md), [0013](adr/0013-dynamic-fragments.md), [0014](adr/0014-keyed-views.md), [0015](adr/0015-component-effect-ownership.md) y [revisión Terra](reviews/2026-11-17-terra.md).
 
-Pendiente: contenido/estado por key, cancelación de futures, SFC cliente, hidratación, Suspense/streaming y medición JS↔WASM.
+Pendiente: contenido/estado por key, aborto real de futures (hoy cancelación cooperativa), SFC cliente, hidratación, Suspense/streaming y medición JS↔WASM.
 
 ### Entrega entre agentes
 

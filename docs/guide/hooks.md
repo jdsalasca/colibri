@@ -96,6 +96,7 @@ match manuals.get() {
 ```
 
 - `use_async` sólo existe en `wasm32`; crea `Signal<Resource<T>>` y actualiza al completar.
+- Dentro de un componente que devuelve `View`, al desmontar se cancela **cooperativamente**: el resultado tardío se descarta y no toca el DOM. El future no se aborta. Fuera de un componente corre hasta completar.
 - `use_lazy(compute)` calcula una vez al primer `get` y cachea; no se invalida. Para derivaciones que cambian usa `use_memo`.
 
 ## Lo que todavía no existe
@@ -104,7 +105,7 @@ match manuals.get() {
 - **SFC cliente**: `dom!` es la ruta Rust; `.colibri` aún no compila a WASM.
 - **Hidratación** SSR → cliente.
 - **Suspense/streaming**: `Resource` no suspende el render ni hace streaming.
-- **Cancelación de futures** al desmontar y code splitting/lazy components.
+- **Aborto real de futures** (la cancelación es cooperativa) y code splitting/lazy components.
 - **Scope de terceros**: sólo los componentes `-> View` reciben effects con ownership automático; SSR descarta los efectos.
 
 ## Semántica recomendada para el futuro

@@ -167,6 +167,14 @@ fn register_effect(effect: &Effect) {
     });
 }
 
+/// Whether a component effect scope is currently active.
+///
+/// Client tasks use this to bind their cancellation to the component lifetime;
+/// outside a scope the task runs to completion and the caller keeps the handle.
+pub fn effect_scope_active() -> bool {
+    EFFECT_SCOPE.with(|scopes| !scopes.borrow().is_empty())
+}
+
 struct TrackingGuard;
 
 impl TrackingGuard {
@@ -739,6 +747,15 @@ mod tests {
         drop(clone);
         signal.set(2);
         assert_eq!(runs.get(), 2);
+    }
+
+    #[test]
+    fn effect_scope_active_tracks_scope_lifetime() {
+        assert!(!effect_scope_active());
+        let (inside, effects) = with_effect_scope(effect_scope_active);
+        assert!(inside);
+        assert!(effects.is_empty());
+        assert!(!effect_scope_active());
     }
 
     #[test]
