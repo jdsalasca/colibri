@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-17. M00-M07 parcial y M09 básico (DOM/WASM, async, lazy, Dynamic, Keyed, ownership de effects, scope suspendido, cancelación cooperativa, teardown, latencia, hidratación, islas y estado SSR) pasaron CI en `99d2dbf`; el estado SSR está **en local con 93 pruebas + 6 E2E** y pendiente de CI. E2E Playwright/Chromium: `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, keyed `A,B,C→C,B,A` con foco, título `Contador 0→1`, teardown a cero, teclado, hidratación con texto coalescido y estado `7→8`, islas con contador `3` y toggle `ON`. Click→DOM ~20–30 µs (7–10× vanilla). Terra: 8/8 de la #1; 3/6 de la #2 corregidos y 3 aceptados. ManualOps (Axum + Colibrí) sigue validado. Sin comparativa con otros frameworks ni memoria.
+Actualizado: 2026-11-17. M00-M07 parcial y M09 básico (DOM/WASM, async, lazy, Dynamic, Keyed, ownership de effects, scope suspendido, cancelación cooperativa, teardown, latencia, hidratación, islas y estado SSR) pasaron CI en `b18fbbb`: **93 pruebas** + **6 E2E**. E2E Playwright/Chromium: `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, keyed `A,B,C→C,B,A` con foco, título `Contador 0→1`, teardown a cero, teclado, hidratación con texto coalescido y estado `7→8`, islas con contador `3` y toggle `ON`. Click→DOM ~20–30 µs (7–10× vanilla). Terra: 8/8 de la #1; 3/6 de la #2 corregidos y 3 aceptados. ManualOps (Axum + Colibrí) sigue validado. Sin comparativa con otros frameworks ni memoria.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
@@ -36,7 +36,7 @@ Actualizado: 2026-11-17. M00-M07 parcial y M09 básico (DOM/WASM, async, lazy, D
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | Local: 93 pruebas, 0 fallos. CI `99d2dbf`: 91 |
+| `cargo test --workspace` | CI `b18fbbb`: 93 pruebas, 0 fallos. Local: 93 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
@@ -50,7 +50,7 @@ Actualizado: 2026-11-17. M00-M07 parcial y M09 básico (DOM/WASM, async, lazy, D
 | Revisión Terra | 8 hallazgos; 6 aplicados, 2 diferidos en [review](reviews/2026-11-17-terra.md) |
 | Audit portátil de `teachers` | fmt + clippy + README + `expect` limpios; quedan 4 archivos >400 líneas (deuda documentada en [quality](quality.md)) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
-| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `99d2dbf`: [run 44129748216](https://github.com/jdsalasca/colibri/actions/runs/44129748216) / [run 44129748825](https://github.com/jdsalasca/colibri/actions/runs/44129748825) (validate + wasm + e2e) |
+| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `b18fbbb`: [run 44131922928](https://github.com/jdsalasca/colibri/actions/runs/44131922928) / [run 44131924414](https://github.com/jdsalasca/colibri/actions/runs/44131924414) (validate + wasm + e2e) |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |
 
