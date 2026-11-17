@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-16. M00–M04 y M05 se validaron en GitHub Actions para el PR #3 (commit `5dadebd45d619aaeb73f4fd840c8a51bcbdf655d`) con **55 pruebas**. El endurecimiento M05 pasó CI en `main`/`develop` para `8eb70c2` (58 pruebas). Sobre esa base se añadió la primera rebanada de M06 (SSR dinámico con resolver): **68 pruebas en local**, pendiente de CI para el nuevo commit. No se ha probado navegador ni rendimiento comparativo.
+Actualizado: 2026-11-16. M00–M05 se validaron en CI (`8eb70c2`, 58 pruebas; PR #3, 55). La primera rebanada de M06 (SSR dinámico con resolver) pasó CI en `main` y `develop` para `93c7e5a`: [main run 43992063285](https://github.com/jdsalasca/colibri/actions/runs/43992063285), [develop run 43992063264](https://github.com/jdsalasca/colibri/actions/runs/43992063264), **68 pruebas**. No se ha probado navegador ni rendimiento comparativo.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
@@ -31,12 +31,12 @@ Actualizado: 2026-11-16. M00–M04 y M05 se validaron en GitHub Actions para el 
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | Local: 68 pruebas (13 core, 10 SSR, 5 pipeline dinámico). CI del PR #3: 55 pruebas; `8eb70c2`: 58 |
+| `cargo test --workspace` | CI `93c7e5a`: 68 pruebas, 0 fallos. Local: 68 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
-| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `8eb70c2`: [run 43991479155](https://github.com/jdsalasca/colibri/actions/runs/43991479155) / [run 43991479721](https://github.com/jdsalasca/colibri/actions/runs/43991479721) |
+| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `93c7e5a`: [run 43992063285](https://github.com/jdsalasca/colibri/actions/runs/43992063285) / [run 43992063264](https://github.com/jdsalasca/colibri/actions/runs/43992063264) |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |
 
