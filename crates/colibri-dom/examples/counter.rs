@@ -30,9 +30,45 @@ mod wasm {
         View::Fragment(Vec::new())
     }
 
+    #[component]
+    pub fn HydratedCounter() -> View {
+        let count = use_state(0_i32);
+        let text = count.clone();
+        let click = count.clone();
+        dom! {
+            <section class="hydrated">
+                <p class="value">{text.get()}</p>
+                <button type="button" class="increment" on:click={move |_event| click.update(|n| *n += 1)}>
+                    "+1"
+                </button>
+            </section>
+        }
+    }
+
     #[wasm_bindgen(start)]
     pub fn start() -> Result<(), JsValue> {
-        mount_app()
+        if web_sys::window()
+            .and_then(|window| window.document())
+            .and_then(|document| document.get_element_by_id("app"))
+            .is_some()
+        {
+            mount_app()?;
+        }
+        Ok(())
+    }
+
+    #[wasm_bindgen]
+    pub fn hydrate_demo() -> Result<(), JsValue> {
+        let document = web_sys::window()
+            .and_then(|window| window.document())
+            .ok_or_else(|| JsValue::from_str("no document"))?;
+        let container = document
+            .get_element_by_id("hydrated")
+            .ok_or_else(|| JsValue::from_str("missing #hydrated"))?;
+        let handle = colibri_dom::hydrate(dom! { <HydratedCounter/> }, container)?;
+        let old = ROOT.with(|slot| slot.borrow_mut().replace(handle));
+        drop(old);
+        Ok(())
     }
 
     thread_local! {

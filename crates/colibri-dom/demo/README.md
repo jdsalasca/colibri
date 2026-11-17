@@ -32,6 +32,7 @@ Abre <http://127.0.0.1:3211/>. Click en `+1`:
 - keyed: `A,B,C → C,B,A` conservando el nodo y el foco de `B`
 - teardown: 25 ciclos mount/unmount dejan `stats()` en cero y `#app` vacío
 - teclado: Enter/Space activan, `Shift+Tab` mueve el foco
+- hidratación: `/hydrate.html` adopta el HTML SSR y conserva los nodos
 - sin errores de consola ni wrappers `div`.
 
 E2E automatizado:

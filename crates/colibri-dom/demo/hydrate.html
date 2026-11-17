@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Colibrí · hidratación</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="hydrated"><section class="hydrated"><p class="value">0</p><button type="button" class="increment">+1</button></section></div>
+  <script type="module">
+    import init, { hydrate_demo } from './pkg/counter.js';
+    await init();
+    try {
+      hydrate_demo();
+    } catch (error) {
+      console.error(error);
+    }
+  </script>
+</body>
+</html>

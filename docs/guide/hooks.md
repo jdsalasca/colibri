@@ -76,6 +76,20 @@ pub fn TitleEffect(count: Signal<i32>) -> View {
 
 Límite: la detección es sintáctica. Si el retorno es un alias o wrapper de `View`, conserva el handle o anota el retorno como `View`. Ver [ADR 0015](../adr/0015-component-effect-ownership.md). No llames hooks (`use_async`, `use_effect`) dentro del callback de otro effect: van en el cuerpo del componente.
 
+## Hidratación
+
+`colibri_dom::hydrate(view, container)` adopta el HTML servido por SSR en vez de reconstruirlo:
+
+```rust
+let handle = colibri_dom::hydrate(dom! { <HydratedCounter/> }, container)?;
+```
+
+- Exige que el árbol coincida etiqueta por etiqueta (los atributos se reaplican y el texto se corrige).
+- Conserva identidad de nodos y foco; los eventos y effects se registran sobre los nodos existentes.
+- Los hooks se ejecutan de nuevo: **no hay estado serializado**, el estado arranca en sus valores iniciales.
+- `Dynamic` y `Keyed` todavía no son hidratables: `hydrate` devuelve error.
+- Si la estructura no coincide, devuelve error sin borrar el DOM SSR. Ver [ADR 0016](../adr/0016-hydration.md).
+
 ## Async y lazy
 
 ```rust
@@ -103,7 +117,7 @@ match manuals.get() {
 
 - **Reconciliación keyed**: `<Keyed>` conserva identidad/foco al reordenar, pero no re-renderiza el contenido de una key existente; falta diff/estado por key.
 - **SFC cliente**: `dom!` es la ruta Rust; `.colibri` aún no compila a WASM.
-- **Hidratación** SSR → cliente.
+- **Hidratación de `Dynamic`/`Keyed`** y serialización de estado SSR → cliente (la hidratación básica ya adopta HTML estático).
 - **Suspense/streaming**: `Resource` no suspende el render ni hace streaming.
 - **Aborto real de futures** (la cancelación es cooperativa) y code splitting/lazy components.
 - **Scope de terceros**: sólo los componentes `-> View` reciben effects con ownership automático; SSR descarta los efectos.

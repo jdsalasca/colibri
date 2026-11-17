@@ -85,6 +85,29 @@ test('keyboard activates buttons and moves focus', async ({ page }) => {
   await expect(page.locator('button.reorder')).toBeFocused();
 });
 
+test('hydrates server-rendered DOM without losing nodes', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  await page.goto('/hydrate.html');
+  await page.evaluate(() => {
+    const section = document.querySelector<HTMLElement>('#hydrated section');
+    const value = document.querySelector<HTMLElement>('#hydrated p.value');
+    if (section) section.dataset.section = 'ssr';
+    if (value) value.dataset.marker = 'ssr';
+  });
+
+  await page.locator('#hydrated button.increment').click();
+  await expect(page.locator('#hydrated p.value')).toHaveText('1');
+  await expect(page.locator('#hydrated p.value')).toHaveAttribute('data-marker', 'ssr');
+  await expect(page.locator('#hydrated section')).toHaveAttribute('data-section', 'ssr');
+  await expect(page.locator('#hydrated > *')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
 test('click to DOM latency stays bounded against a vanilla baseline', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.value')).toHaveText('0');

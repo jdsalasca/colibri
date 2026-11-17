@@ -355,6 +355,115 @@ impl MountState {
         });
         Ok(())
     }
+
+    fn hydrate_into(&mut self, view: &View, cursor: &mut ChildCursor) -> Result<(), JsValue> {
+        match view {
+            View::Text(value) => {
+                let node = cursor.next("text")?;
+                expect_text(&node)?;
+                node.set_text_content(Some(value));
+            }
+            View::DynamicText(value) => {
+                let node = cursor.next("dynamic text")?;
+                expect_text(&node)?;
+                let value = Rc::clone(value);
+                let node = node.clone();
+                let effect = use_effect(move || {
+                    node.set_text_content(Some(&value()));
+                });
+                self.effects.push(effect);
+            }
+            View::Element(element) => {
+                let node = cursor.next(&format!("<{}>", element.tag))?;
+                let existing: Element = node.dyn_into().map_err(|_| {
+                    JsValue::from_str(&format!("hydration mismatch: expected <{}>", element.tag))
+                })?;
+                if !existing.tag_name().eq_ignore_ascii_case(&element.tag) {
+                    return Err(JsValue::from_str(&format!(
+                        "hydration mismatch: expected <{}>, found <{}>",
+                        element.tag,
+                        existing.tag_name()
+                    )));
+                }
+                for attribute in &element.attributes {
+                    self.render_attribute(&existing, attribute)?;
+                }
+                for event in &element.events {
+                    self.render_event(&existing, event)?;
+                }
+                let mut children = ChildCursor::new(&existing);
+                for child in &element.children {
+                    self.hydrate_into(child, &mut children)?;
+                }
+                children.finish()?;
+            }
+            View::Fragment(children) => {
+                for child in children {
+                    self.hydrate_into(child, cursor)?;
+                }
+            }
+            View::Scoped { view, effects } => {
+                if let Some(effects) = effects.borrow_mut().take() {
+                    self.effects.extend(effects);
+                }
+                self.hydrate_into(view, cursor)?;
+            }
+            View::DynamicFragment(_) | View::KeyedFragment(_) => {
+                return Err(JsValue::from_str(
+                    "hydration does not support Dynamic or Keyed fragments yet",
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Walks existing DOM children in order while hydrating a view.
+struct ChildCursor {
+    nodes: Vec<Node>,
+    index: usize,
+}
+
+impl ChildCursor {
+    fn new(parent: &Element) -> Self {
+        let children = parent.child_nodes();
+        let mut nodes = Vec::with_capacity(children.length() as usize);
+        for index in 0..children.length() {
+            if let Some(node) = children.item(index) {
+                nodes.push(node);
+            }
+        }
+        Self { nodes, index: 0 }
+    }
+
+    fn next(&mut self, expected: &str) -> Result<Node, JsValue> {
+        let node =
+            self.nodes.get(self.index).cloned().ok_or_else(|| {
+                JsValue::from_str(&format!("hydration mismatch: missing {expected}"))
+            })?;
+        self.index += 1;
+        Ok(node)
+    }
+
+    fn finish(&self) -> Result<(), JsValue> {
+        if self.index == self.nodes.len() {
+            return Ok(());
+        }
+        Err(JsValue::from_str(&format!(
+            "hydration mismatch: {} extra node(s)",
+            self.nodes.len() - self.index
+        )))
+    }
+}
+
+fn expect_text(node: &Node) -> Result<(), JsValue> {
+    if node.node_type() == Node::TEXT_NODE {
+        Ok(())
+    } else {
+        Err(JsValue::from_str(
+            "hydration mismatch: expected a text node",
+        ))
+    }
 }
 
 fn validate_dom_attribute(name: &str, value: Option<&str>) -> Result<(), JsValue> {
@@ -405,5 +514,45 @@ fn mount_inner(view: View, container: Element) -> Result<MountHandle, JsValue> {
         roots,
         effects: state.effects,
         listeners: state.listeners,
+    })
+}
+
+/// Adopt server-rendered DOM instead of rebuilding it.
+///
+/// The existing children of `container` must match `view` element by element;
+/// text and attributes are corrected in place, so node identity survives.
+/// `Dynamic` and `Keyed` fragments are not hydratable yet and return an error.
+pub fn hydrate(view: View, container: Element) -> Result<MountHandle, JsValue> {
+    without_effect_scope(|| {
+        let document = container
+            .owner_document()
+            .ok_or_else(|| JsValue::from_str("container must belong to a document"))?;
+        let container_node: &Node = container.unchecked_ref();
+        let mut state = MountState {
+            document,
+            effects: Vec::new(),
+            listeners: Vec::new(),
+        };
+        let mut cursor = ChildCursor::new(&container);
+        if let Err(error) = state.hydrate_into(&view, &mut cursor) {
+            drop(state);
+            return Err(error);
+        }
+        if let Err(error) = cursor.finish() {
+            drop(state);
+            return Err(error);
+        }
+
+        let children = container_node.child_nodes();
+        let roots = (0..children.length())
+            .filter_map(|index| children.item(index))
+            .collect();
+
+        Ok(MountHandle {
+            container,
+            roots,
+            effects: state.effects,
+            listeners: state.listeners,
+        })
     })
 }
