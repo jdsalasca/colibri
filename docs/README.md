@@ -33,5 +33,6 @@
 | ¿Cómo se renderiza? | [Renderizado](spec/rendering.md) |
 | ¿Cómo integro Rust, Vite y Sass? | [Toolchain](spec/toolchain.md) |
 | ¿Cómo construyo componentes y SSR? | [Componentes](guide/components.md) |
+| ¿Cómo funcionan hooks, async y lazy? | [Hooks](guide/hooks.md) |
 | ¿Qué estándar de calidad aplico? | [Calidad](quality.md) |
 | ¿Qué hago a continuación? | [Backlog](tasks/README.md) |

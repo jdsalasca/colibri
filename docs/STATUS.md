@@ -19,6 +19,7 @@ Actualizado: 2026-11-16. M00–M06 y componentes funcionales se validaron en CI 
 - El parser actual busca cierres de etiquetas de forma simple: no es seguro para HTML arbitrario ni etiquetas embebidas, comentarios complejos o bloques Rust que incluyan textos coincidentes.
 - El renderer está deliberadamente restringido. No ampliar tags/atributos sin revisar XSS, URL schemes, atributos booleanos y reglas HTML/ARIA.
 - El núcleo reactivo usa reactividad síncrona con cola de memos antes de effects. Los ciclos se cortan tras 4.096 ejecuciones y dejan un `ReactiveError::CycleLimit` recuperable con `take_error()`; no hay panic automático. Los memos son eager y no existe scheduler del navegador.
+- `use_state`/`use_memo`/`use_effect` existen en `colibri-core`, pero **no hay render loop de componente ni DOM**: un `set` no repinta HTML. Async, `Resource` y lazy siguen pendientes (M07). Ver [hooks](guide/hooks.md).
 - `stats()` es instrumentación thread-local para tests; no es un perfil de memoria ni una métrica de producción.
 - CI del PR #3 comprobado con 55 tests y checks de formato/Clippy; cualquier commit futuro debe volver a pasar los checks.
 - Los archivos de ejemplo `Counter.rs` y `Counter.colibri` son **sintaxis objetivo**, no una implementación compilable.
