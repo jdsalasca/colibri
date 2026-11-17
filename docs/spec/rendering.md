@@ -46,6 +46,7 @@ let html = render_dynamic(&ir.root, |expression| match expression {
 - Separar `SafeHtml` revisado y literal de `String` ordinario, si en el futuro existe una API de HTML sin escape.
 - Para atributos `href/src/action/formaction` aplicar reglas de URL. Rechazar handlers inline estilo `onclick` string.
 - No imprimir valores dinámicos dentro de tags `script`, `style` ni URLs sin tratamiento especializado.
+- `meta`/`link` sólo por [allowlist](../adr/0010-head-tags-allowlist.md): charset, viewport y stylesheet; nada de `http-equiv`, `preload` ni atributos dinámicos.
 - Probar scripts inyectados, entidades, Unicode, URL codificadas, cierre malicioso, atributos duplicados y SSR mismatch.
 
 ## Criterios de aceptación

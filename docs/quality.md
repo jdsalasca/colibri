@@ -26,7 +26,7 @@ python tools/lint.py --project "C:\Users\jdsal\Documents\Programming-personal\co
   - `crates/colibri-parser/src/lib.rs` (1290)
   - `crates/colibri-core/src/reactive.rs` (706)
   - `crates/colibri-macros/src/lib.rs` (581)
-  - `crates/colibri-ssr/src/lib.rs` (491)
+  - `crates/colibri-ssr/src/lib.rs` (560)
 
 Plan: dividir parser SFC/template, motor reactivo, macros y tests en módulos en una ronda de calidad dedicada. No es un problema de correctitud, pero el audit estricto seguirá en rojo hasta hacerlo.
 

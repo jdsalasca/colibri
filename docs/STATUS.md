@@ -9,7 +9,7 @@ Actualizado: 2026-11-16. M00–M05 se validaron en CI (`8eb70c2`, 58 pruebas; PR
 | `colibri-parser` | scanner SFC, AST con spans, atributos e interpolaciones; límites de tamaño/profundidad; lowering estático a IR (M01–M02) | validación integral de expresiones Rust, HTML5 completo, entidades, SCSS |
 | `colibri-ir` | IR con spans: texto, texto dinámico, elementos, fragmentos, atributos y eventos; lowering SFC→IR (M02) | componentes/calls, props, control de flujo, análisis de dependencias, codegen |
 | `colibri-codegen` | SFC → programa Rust con script, expresiones y atributos dinámicos; `build`/`eval` ejecutan con rustc (M06b) | control de flujo, componentes, eventos, SCSS, optimización |
-| `colibri-ssr` | render estático seguro y SSR dinámico con resolver explícito; escape, URL allowlist, booleanos, void y `MissingValue` con span (M02/M06a) | eventos SSR, streaming, islas, hidratación |
+| `colibri-ssr` | render estático seguro y SSR dinámico con resolver explícito; escape, URL allowlist, booleanos, void, `meta charset`/viewport y `link stylesheet` validados; `MissingValue` con span (M02/M06a) | eventos SSR, streaming, islas, hidratación |
 | `colibri-cli` | `check`, `render` (estático/`--bind`), `build` (Rust generado) y `eval` (compila y ejecuta) | compilación WASM, dev server, preview, benchmark |
 | `colibri-macros` | `view!` dinámico y `#[component]` con props tipadas, children vía `Fragment`, composición y `Option`/null safety; eventos bloqueados (M03/M09) | slots nombrados, eventos, WASM, componentes en SFC |
 | `packages/vite-plugin-colibri` | README de intención | plugin ejecutable |
@@ -33,11 +33,12 @@ Actualizado: 2026-11-16. M00–M05 se validaron en CI (`8eb70c2`, 58 pruebas; PR
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | CI `8a91853`: 80 pruebas, 0 fallos. Local: 80 |
+| `cargo test --workspace` | Local: 82 pruebas. CI `8a91853`: 80 pruebas |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
 | `colibri eval examples/greeting.colibri` | Compila el script con rustc y emite HTML con valores calculados (M06b) |
+| `cargo test -p colibri-ssr` | 12 pruebas: escape, URL allowlist, dinámicos, meta/link seguros y rechazos |
 | `cargo test -p colibri-macros` | Componentes, props tipadas, composición, children y `Option`/null safety (M03b) |
 | Audit portátil de `teachers` | fmt + clippy + README + `expect` limpios; quedan 4 archivos >400 líneas (deuda documentada en [quality](quality.md)) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |

@@ -120,6 +120,43 @@ fn is_void(tag: &str) -> bool {
     )
 }
 
+fn literal_attribute<'a>(element: &'a Element, name: &str) -> Option<&'a str> {
+    element
+        .attributes
+        .iter()
+        .find_map(|attribute| match attribute {
+            Attribute::Static {
+                name: attribute_name,
+                value,
+                ..
+            } if attribute_name.eq_ignore_ascii_case(name) => Some(value.as_str()),
+            _ => None,
+        })
+}
+
+fn has_attribute(element: &Element, name: &str) -> bool {
+    element
+        .attributes
+        .iter()
+        .any(|attribute| attribute.name().eq_ignore_ascii_case(name))
+}
+
+fn meta_is_safe(element: &Element) -> bool {
+    if has_attribute(element, "http-equiv") {
+        return false;
+    }
+    let charset = literal_attribute(element, "charset").is_some();
+    let viewport = literal_attribute(element, "name")
+        .is_some_and(|name| name.eq_ignore_ascii_case("viewport"))
+        && literal_attribute(element, "content").is_some();
+    charset || viewport
+}
+
+fn link_is_safe(element: &Element) -> bool {
+    literal_attribute(element, "rel").is_some_and(|rel| rel.eq_ignore_ascii_case("stylesheet"))
+        && literal_attribute(element, "href").is_some()
+}
+
 /// Static rendering rejects dynamics; dynamic rendering resolves them.
 enum Mode<'a> {
     Static,
@@ -170,19 +207,16 @@ fn render_element(
     if !valid_name(&element.tag)
         || matches!(
             tag.as_str(),
-            "script"
-                | "style"
-                | "iframe"
-                | "object"
-                | "embed"
-                | "svg"
-                | "math"
-                | "meta"
-                | "base"
-                | "link"
+            "script" | "style" | "iframe" | "object" | "embed" | "svg" | "math" | "base"
         )
     {
         return Err(RenderError::new(RenderErrorKind::InvalidTag, &element.span));
+    }
+    if (tag == "meta" && !meta_is_safe(element)) || (tag == "link" && !link_is_safe(element)) {
+        return Err(RenderError::new(
+            RenderErrorKind::UnsafeAttribute,
+            &element.span,
+        ));
     }
     if is_void(&tag) && !element.children.is_empty() {
         return Err(RenderError::new(
@@ -331,6 +365,14 @@ mod tests {
         Node::DynamicText {
             expression: expression.into(),
             span: span(3, 10),
+        }
+    }
+
+    fn static_attribute(name: &str, value: &str) -> Attribute {
+        Attribute::Static {
+            name: name.into(),
+            value: value.into(),
+            span: span(0, 1),
         }
     }
 
@@ -487,5 +529,78 @@ mod tests {
         );
         let error = render_dynamic(&node, |_| Some("x".into())).unwrap_err();
         assert_eq!(error.kind, RenderErrorKind::DynamicContent);
+    }
+
+    #[test]
+    fn renders_safe_meta_and_stylesheet_link() {
+        let head = element(
+            "head",
+            vec![],
+            vec![
+                element("meta", vec![static_attribute("charset", "utf-8")], vec![]),
+                element(
+                    "meta",
+                    vec![
+                        static_attribute("name", "viewport"),
+                        static_attribute("content", "width=device-width, initial-scale=1"),
+                    ],
+                    vec![],
+                ),
+                element(
+                    "link",
+                    vec![
+                        static_attribute("rel", "stylesheet"),
+                        static_attribute("href", "/static/app.css"),
+                    ],
+                    vec![],
+                ),
+            ],
+        );
+        assert_eq!(
+            render_static(&head).unwrap(),
+            "<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><link rel=\"stylesheet\" href=\"/static/app.css\"></head>"
+        );
+    }
+
+    #[test]
+    fn rejects_unsafe_meta_and_link() {
+        let refresh = element(
+            "meta",
+            vec![
+                static_attribute("http-equiv", "refresh"),
+                static_attribute("content", "0;url=https://evil.example"),
+            ],
+            vec![],
+        );
+        assert_eq!(
+            render_static(&refresh).unwrap_err().kind,
+            RenderErrorKind::UnsafeAttribute
+        );
+
+        let preload = element(
+            "link",
+            vec![
+                static_attribute("rel", "preload"),
+                static_attribute("href", "/x"),
+            ],
+            vec![],
+        );
+        assert_eq!(
+            render_static(&preload).unwrap_err().kind,
+            RenderErrorKind::UnsafeAttribute
+        );
+
+        let script_url = element(
+            "link",
+            vec![
+                static_attribute("rel", "stylesheet"),
+                static_attribute("href", "javascript:alert(1)"),
+            ],
+            vec![],
+        );
+        assert_eq!(
+            render_static(&script_url).unwrap_err().kind,
+            RenderErrorKind::UnsafeAttribute
+        );
     }
 }
