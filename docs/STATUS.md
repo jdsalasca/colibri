@@ -1,6 +1,6 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-16. M00–M05 se validaron en CI (`8eb70c2`, 58 pruebas; PR #3, 55). M06a pasó CI en `93c7e5a` (68 pruebas, [run 43992063285](https://github.com/jdsalasca/colibri/actions/runs/43992063285)). Sobre esa base se añadió M06b (codegen Rust real): **75 pruebas en local**, audit portátil de `teachers` limpio, pendiente de CI para el nuevo commit. No se ha probado navegador ni rendimiento comparativo.
+Actualizado: 2026-11-16. M00–M05 se validaron en CI (`8eb70c2`, 58 pruebas; PR #3, 55). M06a pasó CI en `93c7e5a` (68 pruebas). M06b (codegen Rust real) pasó CI en `main` y `develop` para `1b1efaf`: [main run 43994460986](https://github.com/jdsalasca/colibri/actions/runs/43994460986), [develop run 43994370192](https://github.com/jdsalasca/colibri/actions/runs/43994370192), **75 pruebas**; audit portátil de `teachers` limpio. No se ha probado navegador ni rendimiento comparativo.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
@@ -33,14 +33,14 @@ Actualizado: 2026-11-16. M00–M05 se validaron en CI (`8eb70c2`, 58 pruebas; PR
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | Local: 75 pruebas. CI `93c7e5a`: 68 pruebas |
+| `cargo test --workspace` | CI `1b1efaf`: 75 pruebas, 0 fallos. Local: 75 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
 | `colibri eval examples/greeting.colibri` | Compila el script con rustc y emite HTML con valores calculados (M06b) |
 | Audit portátil de `teachers` | `python tools/lint.py --project ...` limpio (fmt + clippy) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
-| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `93c7e5a`: [run 43992063285](https://github.com/jdsalasca/colibri/actions/runs/43992063285) / [run 43992063264](https://github.com/jdsalasca/colibri/actions/runs/43992063264) |
+| CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `1b1efaf`: [run 43994460986](https://github.com/jdsalasca/colibri/actions/runs/43994460986) / [run 43994370192](https://github.com/jdsalasca/colibri/actions/runs/43994370192) |
 | Browser/WASM | No implementado |
 | Benchmarks reproducibles | No implementados |
 
