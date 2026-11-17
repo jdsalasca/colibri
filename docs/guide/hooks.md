@@ -63,13 +63,35 @@ pub fn Counter() -> View {
 
 `mount(view, container)` construye el DOM, suscribe los bindings y limpia listeners/effects al soltar el `MountHandle`. Demo reproducible: [`colibri-dom/demo`](../../crates/colibri-dom/demo/README.md).
 
+## Async y lazy
+
+```rust
+use colibri_core::Resource;
+use colibri_dom::use_async;
+use gloo_timers::future::TimeoutFuture;
+
+let manuals = use_async(async {
+    TimeoutFuture::new(500).await;
+    Ok::<_, String>(42)
+});
+
+match manuals.get() {
+    Resource::Loading => "cargando…",
+    Resource::Ready(total) => "listo",
+    Resource::Failed(error) => "error",
+}
+```
+
+- `use_async` sólo existe en `wasm32`; crea `Signal<Resource<T>>` y actualiza al completar.
+- `use_lazy(compute)` calcula una vez al primer `get` y cachea; no se invalida. Para derivaciones que cambian usa `use_memo`.
+
 ## Lo que todavía no existe
 
 - **Reconciliación estructural**: la forma del árbol se fija al montar; listas/condicionales que cambian requieren remount o diff (pendiente).
 - **SFC cliente**: `dom!` es la ruta Rust; `.colibri` aún no compila a WASM.
 - **Hidratación** SSR → cliente.
-- **Async**: no existe `use_resource`/`use_async` ni estados `Loading/Ready/Error`.
-- **Lazy**: `use_memo` es eager; no hay componentes lazy ni code splitting.
+- **Suspense/streaming**: `Resource` no suspende el render ni hace streaming.
+- **Cancelación de futures** al desmontar y code splitting/lazy components.
 
 ## Semántica recomendada para el futuro
 

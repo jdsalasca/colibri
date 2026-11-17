@@ -6,7 +6,11 @@ edition.workspace = true
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 colibri-core = { path = "../colibri-core" }
 wasm-bindgen = "=0.2.130"
+wasm-bindgen-futures = "0.4"
 web-sys = { version = "=0.3.107", features = ["Document", "Element", "Event", "EventTarget", "Node", "NodeList", "Text", "Window"] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+gloo-timers = { version = "0.3", features = ["futures"] }
 
 [dev-dependencies]
 colibri-macros = { path = "../colibri-macros" }

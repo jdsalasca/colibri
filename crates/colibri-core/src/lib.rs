@@ -21,6 +21,17 @@ pub struct RuntimeStats {
     pub queued: usize,
 }
 
+/// Async data state for `use_async` in the browser runtime.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Resource<T> {
+    /// The request is still running.
+    Loading,
+    /// The request completed with a value.
+    Ready(T),
+    /// The request failed with a message.
+    Failed(String),
+}
+
 pub fn stats() -> RuntimeStats {
     STATS.with(|stats| RuntimeStats {
         signals: stats.signals.get(),
@@ -228,6 +239,46 @@ impl Drop for Scope {
     }
 }
 
+struct LazyInner<T> {
+    value: RefCell<Option<T>>,
+    compute: Box<dyn Fn() -> T>,
+}
+
+/// A value computed on first read and cached for the lifetime of the handle.
+pub struct Lazy<T> {
+    inner: Rc<LazyInner<T>>,
+}
+
+impl<T> Clone for Lazy<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: Rc::clone(&self.inner),
+        }
+    }
+}
+
+impl<T: Clone> Lazy<T> {
+    /// Return the cached value, computing it on first access.
+    pub fn get(&self) -> T {
+        if let Some(value) = self.inner.value.borrow().as_ref() {
+            return value.clone();
+        }
+        let value = (self.inner.compute)();
+        *self.inner.value.borrow_mut() = Some(value.clone());
+        value
+    }
+}
+
+/// Create a lazy value. The closure runs at most once per handle.
+pub fn use_lazy<T: Clone + 'static>(compute: impl Fn() -> T + 'static) -> Lazy<T> {
+    Lazy {
+        inner: Rc::new(LazyInner {
+            value: RefCell::new(None),
+            compute: Box::new(compute),
+        }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -257,6 +308,24 @@ mod tests {
             signal.set(1);
         }
         signal.set(2);
+        assert_eq!(calls.get(), 1);
+    }
+
+    #[test]
+    fn lazy_computes_once_and_shares() {
+        let calls = Rc::new(Cell::new(0));
+        let lazy = use_lazy({
+            let calls = Rc::clone(&calls);
+            move || {
+                calls.set(calls.get() + 1);
+                42
+            }
+        });
+        let clone = lazy.clone();
+        assert_eq!(calls.get(), 0);
+        assert_eq!(lazy.get(), 42);
+        assert_eq!(clone.get(), 42);
+        assert_eq!(lazy.get(), 42);
         assert_eq!(calls.get(), 1);
     }
 }

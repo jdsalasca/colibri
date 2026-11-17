@@ -25,6 +25,7 @@ Abre <http://127.0.0.1:3211/>. Click en `+1`:
 
 - valor: `0 → 1`
 - doble: `0 → 2`
+- async: `cargando catálogo… → 42 manuales listos`
 - sin errores de consola.
 
 Captura: [counter.png](counter.png).

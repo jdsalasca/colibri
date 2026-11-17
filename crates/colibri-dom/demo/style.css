@@ -60,6 +60,12 @@ h1 {
   font-size: 14px;
 }
 
+.async {
+  margin: 0 0 28px;
+  color: #718095;
+  font-size: 13px;
+}
+
 button {
   padding: 14px 28px;
   color: #fff;

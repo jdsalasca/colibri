@@ -1,12 +1,12 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-16. M00–M06, componentes funcionales y M07 parcial (DOM/WASM) pasaron CI en `f2ff960`: 82 pruebas en host, build WASM y demo Chrome (`0→1`, doble `0→2`). El dashboard externo **ManualOps** (Axum + Colibrí) compila, pasa 5 tests y responde HTTP real. No se ha probado rendimiento comparativo ni hidratación SSR.
+Actualizado: 2026-11-16. M00–M07 parcial (DOM/WASM, async y lazy) pasaron CI en `f2ff960`: 82 pruebas; con `use_async`/`use_lazy` son **83 en local**, pendiente de CI. El demo Chrome muestra `0→1`, doble `0→2` y `cargando → 42 manuales listos`, sin errores. ManualOps (Axum + Colibrí) sigue validado. No se ha probado rendimiento ni hidratación SSR.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
 |---|---|---|
-| `colibri-core` | `Signal<T>`, `Scope`; tracking sincrónico, `use_state`, `use_memo` eager, `use_effect`, cleanup, `batch`; ciclos recuperables con `take_error()`, `stats()` y `Scope::dispose` (M05) | browser scheduler, tracking async, memo lazy, concurrencia, DOM |
-| `colibri-dom` | runtime DOM/WASM: `View`, `dom!`, `mount`, bindings con effects, eventos y cleanup (M07 parcial) | reconciliación estructural, SFC cliente, hidratación, async/lazy |
+| `colibri-core` | `Signal<T>`, `Scope`; tracking sincrónico, `use_state`, `use_memo` eager, `use_effect`, `use_lazy`, `Resource`, cleanup, `batch`; ciclos recuperables con `take_error()`, `stats()` y `Scope::dispose` (M05) | browser scheduler, tracking async, memo lazy, concurrencia, DOM |
+| `colibri-dom` | runtime DOM/WASM: `View`, `dom!`, `mount`, bindings con effects, eventos, `use_async`/`Resource` y cleanup (M07 parcial) | reconciliación estructural, SFC cliente, hidratación, Suspense |
 | `colibri-parser` | scanner SFC, AST con spans, atributos e interpolaciones; límites de tamaño/profundidad; lowering estático a IR (M01–M02) | validación integral de expresiones Rust, HTML5 completo, entidades, SCSS |
 | `colibri-ir` | IR con spans: texto, texto dinámico, elementos, fragmentos, atributos y eventos; lowering SFC→IR (M02) | componentes/calls, props, control de flujo, análisis de dependencias, codegen |
 | `colibri-codegen` | SFC → programa Rust con script, expresiones y atributos dinámicos; `build`/`eval` ejecutan con rustc (M06b) | control de flujo, componentes, eventos, SCSS, optimización |
@@ -36,7 +36,7 @@ Actualizado: 2026-11-16. M00–M06, componentes funcionales y M07 parcial (DOM/W
 |---|---|
 | `cargo fmt --all --check` | Pasa en CI del PR #3 (run 43989925541) |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Pasa en CI del PR #3 |
-| `cargo test --workspace` | CI `f2ff960`: 82 pruebas, 0 fallos. Local: 82 |
+| `cargo test --workspace` | Local: 83 pruebas. CI `f2ff960`: 82 |
 | `colibri check examples/counter.colibri` | Pasa en local; sólo valida bloques y estructura del template, no compila |
 | `colibri render examples/static-card.colibri` | Emite HTML estático (M02); rechaza contenido dinámico con span |
 | `colibri render examples/greeting.colibri --bind name=Ada --bind message=Bienvenida` | Emite HTML con valores resueltos (M06a); falla con `MissingValue` si falta un binding |
@@ -44,7 +44,7 @@ Actualizado: 2026-11-16. M00–M06, componentes funcionales y M07 parcial (DOM/W
 | `cargo test -p colibri-ssr` | 12 pruebas: escape, URL allowlist, dinámicos, meta/link seguros y rechazos |
 | `cargo test -p colibri-macros` | Componentes, props tipadas, composición, children y `Option`/null safety (M03b) |
 | Build WASM + wasm-bindgen | CI `f2ff960` compila `wasm32-unknown-unknown`; demo local con wasm-bindgen |
-| Chrome/Playwright | Contador: `0 → 1`, `doble 0 → 2`, sin errores de consola; captura `counter.png` |
+| Chrome/Playwright | Contador: `0 → 1`, `doble 0 → 2`, `cargando → 42 manuales listos`, sin errores; captura `counter.png` |
 | Audit portátil de `teachers` | fmt + clippy + README + `expect` limpios; quedan 4 archivos >400 líneas (deuda documentada en [quality](quality.md)) |
 | CLI con SFC inválido | Reporta `archivo:línea:columna` y código de error (M01) |
 | CI de GitHub con `--check` | **Verificado** en `main`/`develop` para `f2ff960`: [run 44000546147](https://github.com/jdsalasca/colibri/actions/runs/44000546147) / [run 44000546225](https://github.com/jdsalasca/colibri/actions/runs/44000546225) (validate + wasm) |
@@ -79,9 +79,9 @@ Dashboard de manuales internos con Axum + componentes Colibrí, sin JavaScript:
 
 ## Avance M07 — runtime DOM/WASM
 
-`colibri-dom` (wasm32) monta un `View` en el DOM, actualiza texto/atributos con effects y registra eventos con `Closure`. `#[component]` funciona con retorno `View` y children vía `Fragment`. El demo `crates/colibri-dom/demo` usa `use_state`, `use_memo`, un componente `Panel` y `on:click`; en Chrome real: `0→1`, `doble 0→2`, sin errores de consola. Ver [ADR 0011](adr/0011-dom-runtime-mvp.md).
+`colibri-dom` (wasm32) monta un `View` en el DOM, actualiza texto/atributos con effects y registra eventos con `Closure`. `#[component]` funciona con retorno `View` y children vía `Fragment`. `use_async` añade `Resource<T>` (`Loading/Ready/Failed`) con `spawn_local`; `use_lazy` cachea un cálculo al primer acceso. El demo usa `use_state`, `use_memo`, `use_async`, un componente `Panel` y `on:click`; en Chrome real: `0→1`, `doble 0→2`, `cargando → 42 manuales listos`, sin errores. Ver [ADR 0011](adr/0011-dom-runtime-mvp.md) y [0012](adr/0012-async-resource-lazy.md).
 
-Pendiente: reconciliación estructural, SFC cliente, hidratación, tests E2E en CI, medición JS↔WASM, async/lazy.
+Pendiente: reconciliación estructural, SFC cliente, hidratación, Suspense/streaming, cancelación de futures, tests E2E en CI y medición JS↔WASM.
 
 ### Entrega entre agentes
 

@@ -31,6 +31,8 @@ drop(scope); // unregister
 - `use_effect` se ejecuta inmediatamente y observa señales leídas **sincrónicamente**. La suscripción dura mientras viva el handle `Effect`.
 - `use_effect_with_cleanup` devuelve una función de cleanup, ejecutada antes del siguiente run y al soltar Effect.
 - `batch` agrupa cambios para deduplicar efectos; subscribers manuales aún son síncronos.
+- `use_lazy(compute)` calcula una vez al primer `get` y cachea; no se invalida.
+- `Resource<T>` (`Loading/Ready/Failed`) modela datos asíncronos; `use_async` vive en `colibri-dom` wasm.
 - `Scope::track_effect` administra lifetime y desuscribe al desmontar; `Scope::dispose` ejecuta cleanups LIFO y `Scope::own` apropia cualquier valor.
 - `take_error()` devuelve `ReactiveError::CycleLimit` si un ciclo superó 4.096 ejecuciones; el motor vacía la cola y sigue usable.
 - `stats()` expone señales, suscripciones, observadores y tareas en cola por hilo (instrumentación de tests).

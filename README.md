@@ -20,8 +20,8 @@ Colibrí es un proyecto de investigación y desarrollo de un framework web *Rust
 
 | Paquete | Estado | Función |
 |---|---|---|
-| `colibri-core` | Prototipo | Signals, scopes y motor con `use_state`, `use_memo`, `use_effect`, `batch`, ciclos recuperables (`take_error`), `stats()` y `Scope::dispose` |
-| `colibri-dom` | Prototipo | Runtime DOM/WASM: `View`, `dom!`, `mount`, bindings con effects, eventos y cleanup (M07 parcial) |
+| `colibri-core` | Prototipo | Signals, scopes y motor con `use_state`, `use_memo`, `use_effect`, `use_lazy`, `Resource`, `batch`, ciclos recuperables (`take_error`), `stats()` y `Scope::dispose` |
+| `colibri-dom` | Prototipo | Runtime DOM/WASM: `View`, `dom!`, `mount`, bindings con effects, eventos, `use_async`/`Resource` y cleanup (M07 parcial) |
 | `colibri-parser` | Prototipo | Scanner SFC y AST de template con spans (M01); no compila |
 | `colibri-ir` | Prototipo | IR semántica con spans y lowering SFC→IR (M02) |
 | `colibri-codegen` | Prototipo | SFC → programa Rust; `build`/`eval` con rustc real (M06b) |
@@ -85,7 +85,7 @@ pub fn Counter() -> View {
 }
 ```
 
-Build y demo: [`colibri-dom/demo`](crates/colibri-dom/demo/README.md). `dom!` acepta eventos y actualiza bindings sin reconstruir el árbol.
+Build y demo: [`colibri-dom/demo`](crates/colibri-dom/demo/README.md). `dom!` acepta eventos y actualiza bindings sin reconstruir el árbol. `use_async` devuelve `Signal<Resource<T>>` (`Loading/Ready/Failed`) y `use_lazy` cachea un cálculo al primer acceso.
 
 ## Primeros pasos
 

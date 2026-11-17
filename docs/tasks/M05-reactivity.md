@@ -43,3 +43,7 @@ Los cinco criterios de aceptación quedan cubiertos con 13 pruebas de `colibri-c
 - Sin dependencias de navegador: sólo `std`.
 
 Quedan riesgos fuera de M05: reconciliación DOM, panic boundary de código de usuario, memoria por suscripción medida con profiler y benchmark nativo/WASM (M07/M10, issue #4).
+
+## Extensión async/lazy (ADR 0012)
+
+`Resource<T>` (`Loading/Ready/Failed`), `use_async` en `colibri-dom` wasm y `use_lazy` en core. El demo Chrome valida `cargando → 42 manuales listos`. Lazy memo con invalidación, Suspense y cancelación siguen pendientes.

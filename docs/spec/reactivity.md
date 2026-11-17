@@ -1,6 +1,6 @@
 # Contrato de reactividad y ciclo de vida
 
-**Estado:** contrato M05 cubierto con prototipo verificable: `use_state`, tracking sincrónico, `use_memo` eager, `use_effect`, `use_effect_with_cleanup`, `batch`, cleanup por Scope, ciclos recuperables con `take_error()` y contadores con `stats()`. No está implementado un scheduler browser/concurrente, reactividad asíncrona ni DOM. Ver `docs/STATUS.md` y [ADR 0006](../adr/0006-reactive-cycles-and-stats.md).
+**Estado:** contrato M05 cubierto con prototipo verificable: `use_state`, tracking sincrónico, `use_memo` eager, `use_effect_with_cleanup`, `batch`, cleanup por Scope, ciclos recuperables, `stats()`, `use_lazy` y `Resource<T>`. `use_async` vive en `colibri-dom` wasm y conecta el estado al DOM. Siguen pendientes scheduler concurrente, `Send + Sync`, Suspense/streaming y cancelación de futures. Ver `docs/STATUS.md`, [ADR 0006](../adr/0006-reactive-cycles-and-stats.md) y [ADR 0012](../adr/0012-async-resource-lazy.md).
 
 ## Modelo
 - `Signal<T>`: lectura/actualización de estado; operaciones definidas según ownership de Rust.
@@ -35,12 +35,19 @@ batch(|| { price.set(11); price.set(12); });
 
 **Nota semántica:** esta no es la API de Hooks React y no depende de orden de invocación; depende de la vida útil de handles de Rust. La ejecución inicial de effect es inmediata, el memo recalcula eager, sólo se rastrean lecturas sincrónicas; suscriptores manuales siguen siendo síncronos incluso durante batch. Los ciclos reactivos se cortan tras 4.096 ejecuciones y dejan `ReactiveError::CycleLimit` en `take_error()`, sin panic. No asumir paridad de timing con React, Solid ni Leptos.
 
+## Async y lazy (ADR 0012)
+
+- `Resource<T>`: `Loading`, `Ready(T)`, `Failed(String)`.
+- `colibri_dom::use_async`: `Signal<Resource<T>>` con `spawn_local`; ideal para fetch en wasm.
+- `use_lazy`: cálculo único al primer `get`, cacheado; no se invalida.
+- Sin cancelación, Suspense, streaming ni lazy components todavía.
+
 ## Contrato observable MVP
 - `signal.get()` devuelve último valor confirmado.
 - `signal.set(v)` cambia valor, informa a observadores activos y retorna sin mantener borrows pendientes.
 - `subscription.drop()` cancela notificaciones futuras.
 - `scope.drop()` limpia sus recursos una vez, incluyendo bajo desmontajes anidados.
-- `memo` y `effect`, cuando existan, tienen orden y limpieza documentados.
+- `memo` y `effect` tienen orden y limpieza documentados.
 
 ## Pruebas de corrección mínimas
 - Suscribir y desuscribir dentro de un callback.

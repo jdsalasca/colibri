@@ -35,3 +35,10 @@ Implementado en `colibri-dom` (wasm32):
 - Demo `crates/colibri-dom/demo`: `Panel` + `use_state` + `use_memo` + `on:click`; Chrome: 0→1, doble 0→2, sin errores.
 
 Pendiente: SFC cliente, reconciliación estructural, tests E2E en CI, medición JS↔WASM y accesibilidad automatizada.
+
+## Extensión async/lazy (ADR 0012)
+
+- `colibri_core::Resource<T>` con `Loading/Ready/Failed`.
+- `colibri_dom::use_async`: `spawn_local` + `Signal<Resource<T>>`; el demo pasa de `cargando` a `42 manuales listos`.
+- `colibri_core::use_lazy`: cálculo único al primer `get`, cacheado y clonable.
+- Sin Suspense/streaming ni cancelación de futures.

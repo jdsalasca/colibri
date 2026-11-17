@@ -1,9 +1,10 @@
 //! WASM counter: `cargo build --target wasm32-unknown-unknown --example counter --release`.
 #[cfg(target_arch = "wasm32")]
 mod wasm {
-    use colibri_core::{use_memo, use_state};
-    use colibri_dom::{mount, View};
+    use colibri_core::{use_memo, use_state, Resource};
+    use colibri_dom::{mount, use_async, View};
     use colibri_macros::{component, dom};
+    use gloo_timers::future::TimeoutFuture;
     use wasm_bindgen::prelude::*;
 
     #[component]
@@ -33,6 +34,11 @@ mod wasm {
             let count = count.clone();
             move || count.get() * 2
         });
+        let manuals = use_async(async {
+            TimeoutFuture::new(500).await;
+            Ok::<_, String>(42_i32)
+        });
+        let manuals_text = manuals.clone();
 
         let view = dom! {
             <main class="counter">
@@ -40,6 +46,11 @@ mod wasm {
                     <p class="eyebrow">"COLIBRÍ · WASM"</p>
                     <p class="value">{count_text.get()}</p>
                     <p class="double">"doble: " {doubled.get()}</p>
+                    <p class="async">{match manuals_text.get() {
+                        Resource::Loading => String::from("cargando catálogo…"),
+                        Resource::Ready(total) => format!("{total} manuales listos"),
+                        Resource::Failed(error) => format!("error: {error}"),
+                    }}</p>
                     <button type="button" on:click={move |_event| count_click.update(|n| *n += 1)}>
                         "+1"
                     </button>
