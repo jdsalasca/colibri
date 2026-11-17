@@ -1,0 +1,10 @@
+[package]
+name = "colibri-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+colibri-parser = { path = "../colibri-parser" }
+
+[lints]
+workspace = true

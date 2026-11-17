@@ -1,0 +1,12 @@
+// Conceptual example: macros and browser renderer not implemented yet.
+use colibri::prelude::*;
+
+#[component]
+fn Counter() -> impl View {
+    let count = signal(0);
+    view! {
+        <button on:click=move |_| count.update(|n| *n += 1)>
+            "Count: " {count}
+        </button>
+    }
+}

@@ -71,11 +71,15 @@ AGENTS.md                  Instrucciones técnicas para colaboradores y agentes
 4. **Separación de compilador y runtime:** la herramienta de desarrollo no debe convertirse en coste del usuario final.
 5. **No crear otro React por inercia:** revisar React, Solid, Svelte, Qwik, Leptos, Dioxus, Astro y Yew con espíritu crítico.
 
+## Implementación por agentes
+
+**Empieza por [START HERE](docs/START_HERE.md)** y [el índice de documentación](docs/README.md). Los contratos de sintaxis, IR, reactividad, renderizado y toolchain están en [`docs/spec/`](docs/spec/). El [backlog M00–M11](docs/tasks/README.md) contiene dependencias, ownership sugerido, criterios de aceptación y handoffs. También hay [protocolo multiagente](docs/agent-workflow.md), [estado real](docs/STATUS.md), [modelo de amenazas](docs/security.md) y [pruebas](docs/testing.md).
+
 Consulta [arquitectura](docs/architecture.md), [roadmap](docs/roadmap.md), [plan de benchmarks](docs/benchmarks.md), [decisiones arquitectónicas](docs/adr/) y [precedentes](precedentes/).
 
 ## Publicación
 
-La primera publicación en GitHub requiere crear el repositorio vacío: ver [instrucciones](docs/publishing.md).
+El repositorio oficial es [jdsalasca/colibri](https://github.com/jdsalasca/colibri). Los cambios se revisan en ramas y pull requests; consulta [contribución/publicación](docs/publishing.md).
 
 ## Contribución y licencia
 

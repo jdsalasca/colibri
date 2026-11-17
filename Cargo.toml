@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = ["crates/colibri-core", "crates/colibri-ir", "crates/colibri-parser", "crates/colibri-ssr", "crates/colibri-cli"]
+
+[workspace.package]
+edition = "2021"
+version = "0.0.1"
+repository = "https://github.com/jdsalasca/colibri"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"

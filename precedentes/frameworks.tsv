@@ -1,0 +1,10 @@
+name	url	study
+React	https://github.com/facebook/react	compiler scheduler devtools
+Solid	https://github.com/solidjs/solid	fine-grained reactivity
+Svelte	https://github.com/sveltejs/svelte	compiler and SFCs
+Qwik	https://github.com/QwikDev/qwik	resumability and islands
+Leptos	https://github.com/leptos-rs/leptos	Rust signals SSR hydration
+Dioxus	https://github.com/DioxusLabs/dioxus	Rust RSX and web runtime
+Astro	https://github.com/withastro/astro	static first islands
+Vue	https://github.com/vuejs/core	SFC architecture reactivity
+Yew	https://github.com/yewstack/yew	Rust VDOM web components

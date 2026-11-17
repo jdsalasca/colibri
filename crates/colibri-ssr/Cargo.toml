@@ -1,0 +1,10 @@
+[package]
+name = "colibri-ssr"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+colibri-ir = { path = "../colibri-ir" }
+
+[lints]
+workspace = true
