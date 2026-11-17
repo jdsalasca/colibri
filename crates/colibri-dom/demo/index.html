@@ -10,8 +10,9 @@
 <body>
   <div id="app"></div>
   <script type="module">
-    import init from './pkg/counter.js';
+    import init, { mount_app, stats_json, unmount_app } from './pkg/counter.js';
     await init();
+    window.colibri = { mount_app, stats_json, unmount_app };
   </script>
 </body>
 </html>

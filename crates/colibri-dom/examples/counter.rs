@@ -32,6 +32,16 @@ mod wasm {
 
     #[wasm_bindgen(start)]
     pub fn start() -> Result<(), JsValue> {
+        mount_app()
+    }
+
+    thread_local! {
+        static ROOT: std::cell::RefCell<Option<colibri_dom::MountHandle>> =
+            const { std::cell::RefCell::new(None) };
+    }
+
+    #[wasm_bindgen]
+    pub fn mount_app() -> Result<(), JsValue> {
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("no window"))?;
         let document = window
             .document()
@@ -39,7 +49,28 @@ mod wasm {
         let container = document
             .get_element_by_id("app")
             .ok_or_else(|| JsValue::from_str("missing #app"))?;
+        let handle = mount(app(), container)?;
+        let old = ROOT.with(|slot| slot.borrow_mut().replace(handle));
+        drop(old);
+        Ok(())
+    }
 
+    #[wasm_bindgen]
+    pub fn unmount_app() {
+        let old = ROOT.with(|slot| slot.borrow_mut().take());
+        drop(old);
+    }
+
+    #[wasm_bindgen]
+    pub fn stats_json() -> String {
+        let stats = colibri_core::stats();
+        format!(
+            "{{\"signals\":{},\"subscriptions\":{},\"observers\":{},\"queued\":{}}}",
+            stats.signals, stats.subscriptions, stats.observers, stats.queued
+        )
+    }
+
+    fn app() -> View {
         let count = use_state(0_i32);
         let count_text = count.clone();
         let count_click = count.clone();
@@ -111,10 +142,7 @@ mod wasm {
                 </Panel>
             </main>
         };
-
-        let handle = mount(view, container)?;
-        std::mem::forget(handle);
-        Ok(())
+        view
     }
 }
 

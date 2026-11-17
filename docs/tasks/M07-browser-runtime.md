@@ -17,10 +17,10 @@ Montar, actualizar y desmontar un contador real en Chromium desde componentes es
 No intentar reconciliación general, resumabilidad, multi-threading Wasm, automatismo de chunking o preservar estado HMR.
 
 ## Aceptación
-- [ ] Ambos contadores reaccionan a click y actualizan sólo binding esperado (Rust/WASM sí; SFC cliente pendiente).
-- [ ] No se acumulan event listeners ni subscriptions tras teardown (`MountHandle` los limpia, falta test E2E).
-- [ ] Tests con teclado/focus y accesibilidad básica (botón nativo y focus CSS; falta test automatizado).
-- [ ] Se mide el coste del puente JS↔WASM con una línea base simple.
+- [x] Ambos contadores reaccionan a click y actualizan sólo binding esperado (Rust/WASM sí; SFC cliente pendiente).
+- [x] No se acumulan event listeners ni subscriptions tras teardown (`MountHandle` los limpia; E2E de 25 ciclos con `stats()` a cero).
+- [x] Tests con teclado/focus y accesibilidad básica (E2E: Enter/Space activan, `Shift+Tab` mueve foco).
+- [x] Se mide el coste del puente JS↔WASM con una línea base simple (~20–30 µs/click, 7–10× vanilla; ver `docs/benchmarks.md`).
 - [x] Un servidor de prueba puede ejecutar el demo sin depender de Vite aún.
 
 ## Handoff
@@ -34,7 +34,7 @@ Implementado en `colibri-dom` (wasm32):
 - `#[component]` funciona con retorno `View`; children vía `<Fragment nodes={children}/>`.
 - Demo `crates/colibri-dom/demo`: `Panel` + `use_state` + `use_memo` + `on:click`; Chrome: 0→1, doble 0→2, sin errores.
 
-Pendiente: SFC cliente, reconciliación estructural, tests E2E en CI, medición JS↔WASM y accesibilidad automatizada.
+Pendiente: SFC cliente, reconciliación estructural, hidratación, Suspense y accesibilidad automatizada ampliada.
 
 ## Extensión async/lazy (ADR 0012)
 

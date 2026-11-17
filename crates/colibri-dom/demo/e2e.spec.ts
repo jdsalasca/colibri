@@ -1,4 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+type Stats = { signals: number; subscriptions: number; observers: number; queued: number };
+
+async function stats(page: Page): Promise<Stats> {
+  return page.evaluate(() => JSON.parse((window as any).colibri.stats_json()));
+}
 
 test('counter, async resource and dynamic fragment', async ({ page }) => {
   const errors: string[] = [];
@@ -42,4 +48,79 @@ test('counter, async resource and dynamic fragment', async ({ page }) => {
   await expect(page.locator('[data-colibri-dynamic]')).toHaveCount(0);
   await expect(page.locator('div[style*="display: contents"]')).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test('teardown leaves no nodes, subscriptions or observers', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.value')).toHaveText('0');
+
+  await page.evaluate(() => (window as any).colibri.unmount_app());
+  await expect(page.locator('#app > *')).toHaveCount(0);
+  await page.waitForTimeout(700);
+  const baseline = await stats(page);
+  console.log('baseline stats', baseline);
+
+  for (let i = 0; i < 25; i += 1) {
+    await page.evaluate(() => (window as any).colibri.mount_app());
+    await page.evaluate(() => (window as any).colibri.unmount_app());
+  }
+  await page.waitForTimeout(700);
+
+  expect(await stats(page)).toEqual(baseline);
+  await expect(page.locator('#app > *')).toHaveCount(0);
+});
+
+test('keyboard activates buttons and moves focus', async ({ page }) => {
+  await page.goto('/');
+  const increment = page.locator('button.increment');
+  await increment.focus();
+  await expect(increment).toBeFocused();
+
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.value')).toHaveText('1');
+  await page.keyboard.press('Space');
+  await expect(page.locator('.value')).toHaveText('2');
+
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.locator('button.reorder')).toBeFocused();
+});
+
+test('click to DOM latency stays bounded against a vanilla baseline', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.value')).toHaveText('0');
+
+  const result = await page.evaluate(() => {
+    const runs = 1000;
+    const wasmButton = document.querySelector<HTMLButtonElement>('button.increment');
+    if (!wasmButton) throw new Error('missing increment button');
+    for (let i = 0; i < 100; i += 1) wasmButton.click();
+    const wasmStart = performance.now();
+    for (let i = 0; i < runs; i += 1) wasmButton.click();
+    const wasm = (performance.now() - wasmStart) / runs;
+
+    const host = document.createElement('div');
+    const vanillaButton = document.createElement('button');
+    const output = document.createElement('span');
+    output.textContent = '0';
+    host.append(vanillaButton, output);
+    document.body.append(host);
+    let value = 0;
+    vanillaButton.addEventListener('click', () => {
+      value += 1;
+      output.textContent = String(value);
+    });
+    for (let i = 0; i < 100; i += 1) vanillaButton.click();
+    const vanillaStart = performance.now();
+    for (let i = 0; i < runs; i += 1) vanillaButton.click();
+    const vanilla = (performance.now() - vanillaStart) / runs;
+    host.remove();
+
+    return { wasm, vanilla };
+  });
+
+  console.log(
+    `click→DOM per click: colibrí ${result.wasm.toFixed(4)} ms, vanilla ${result.vanilla.toFixed(4)} ms`,
+  );
+  expect(result.wasm).toBeLessThan(0.5);
+  expect(result.vanilla).toBeLessThan(0.5);
 });

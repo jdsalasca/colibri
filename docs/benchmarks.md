@@ -47,3 +47,25 @@ Antes de optimizar, obtener baseline reproducible. Cambios de alto riesgo requie
 
 ## Declaración obligatoria en PR de rendimiento
 "Implementación comparada, versión/commit, máquina, comando, N corridas, métricas y limitaciones". Ausencia de evidencia = hipótesis, nunca hecho.
+
+## Primeras mediciones (M07, 2026-11-17)
+
+No son comparativas de frameworks: son la línea base del runtime propio y la prueba de teardown.
+
+**Entorno.** Windows 11 Home; Intel Core Ultra 7 258V; 31,5 GB RAM; Rust 1.99.0; Node 24.21.0; Playwright 1.65.1 (Chromium del build); build `--release`; Chromium headless.
+
+**Escenario click→DOM.** Botón que incrementa un `Signal` y actualiza un texto por effect (demo `colibri-dom/demo`). 100 clicks de warmup y 1.000 medidos en bucle síncrono, `performance.now()` total / N. Baseline: botón nativo + listener que hace `textContent = n`.
+
+| Corrida | Colibrí (ms/click) | Vanilla JS (ms/click) |
+|---|---|---|
+| 1 | 0,0285 | 0,0028 |
+| 2 | 0,0267 | 0,0027 |
+| 3 | 0,0202 | 0,0026 |
+
+Lectura: ~20–30 µs por click, 7–10× el baseline JS; en absoluto son ~30–50 mil actualizaciones/s para un binding. El coste es scripting (dispatch + WASM + effect + DOM write), no layout/paint: no se fuerza render entre clicks.
+
+**Teardown.** 25 ciclos `mount_app`/`unmount_app`: `stats()` vuelve exactamente a `{signals: 0, subscriptions: 0, observers: 0, queued: 0}` y `#app` queda sin hijos. Es el test E2E `teardown leaves no nodes, subscriptions or observers`.
+
+**Reproducir.** Compilar el ejemplo wasm, `wasm-bindgen --target web --out-dir crates/colibri-dom/demo/pkg ...`, luego `cd crates/colibri-dom/demo && npx playwright test -g "latency|teardown"`.
+
+**Límites.** Una sola máquina; DOM pequeño; sin comparación con React/Solid/Svelte/Leptos/Dioxus; sin p50/p95 de input real ni memoria. H1, H2 y H4 siguen sin datos; H3 (el puente JS↔WASM domina los cambios pequeños) es consistente con estos números, no concluyente.
