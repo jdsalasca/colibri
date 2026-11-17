@@ -19,7 +19,21 @@ test('counter, async resource and dynamic fragment', async ({ page }) => {
   await page.locator('button.toggle').click();
   await expect(page.locator('.conditional')).toHaveCount(1);
 
-  await page.locator('button:not(.toggle)').click();
+  await expect(page.locator('.keyed-item')).toHaveCount(3);
+  await page.evaluate(() => {
+    const items = document.querySelectorAll<HTMLElement>('.keyed-item');
+    items[1].dataset.marker = 'keep';
+    items[1].querySelector<HTMLButtonElement>('button')?.focus();
+  });
+  await page.evaluate(() => {
+    document.querySelector<HTMLButtonElement>('.reorder')?.click();
+  });
+  await expect(page.locator('.key-label')).toHaveText(['C', 'B', 'A']);
+  await expect(page.locator('[data-marker="keep"] .key-label')).toHaveText('B');
+  const focused = await page.evaluate(() => document.activeElement?.textContent);
+  expect(focused).toBe('focus');
+
+  await page.locator('button.increment').click();
   await expect(page.locator('.value')).toHaveText('1');
   await expect(page.locator('.double')).toHaveText('doble: 2');
 

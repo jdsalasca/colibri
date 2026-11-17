@@ -87,7 +87,7 @@ match manuals.get() {
 
 ## Lo que todavía no existe
 
-- **Reconciliación keyed**: `Dynamic` reconstruye el subárbol (sin diff/foco/estado local) usando comentarios ancla; falta reconciliación estable por identidad.
+- **Reconciliación keyed**: `<Keyed>` conserva identidad/foco al reordenar, pero no re-renderiza el contenido de una key existente; falta diff/estado por key.
 - **SFC cliente**: `dom!` es la ruta Rust; `.colibri` aún no compila a WASM.
 - **Hidratación** SSR → cliente.
 - **Suspense/streaming**: `Resource` no suspende el render ni hace streaming.

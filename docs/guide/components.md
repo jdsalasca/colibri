@@ -133,6 +133,26 @@ wasm-bindgen --target web --out-dir crates/colibri-dom/demo/pkg \
   target/wasm32-unknown-unknown/release/examples/counter.wasm
 ```
 
+### Listas keyed
+
+`<Keyed nodes={closure}/>` conserva identidad, listeners y foco al reordenar:
+
+```rust
+use colibri_dom::KeyedView;
+
+let items = use_state(vec!["A".to_string(), "B".to_string(), "C".to_string()]);
+let render = {
+    let items = items.clone();
+    move || items.get().into_iter().map(|label| KeyedView {
+        key: label.clone(),
+        view: dom! { <li>{label.clone()}</li> },
+    }).collect::<Vec<_>>()
+};
+let view = dom! { <ul><Keyed nodes={render}/></ul> };
+```
+
+Una key existente **reutiliza sus nodos**; el contenido debe ser reactivo o la key debe cambiar cuando cambie el dato. Keys duplicadas se reportan y se descartan.
+
 ### Listas y condicionales
 
 `<Dynamic nodes={closure}/>` reconstruye un subárbol cuando cambian las señales leídas:

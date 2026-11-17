@@ -1,12 +1,12 @@
 # Estado real del proyecto
 
-Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliación con anclas) pasaron CI en `bd8311a`: **84 pruebas**, build WASM y **E2E Playwright/Chromium** (`0→1`, doble `0→2`, async `42`, condicional `1→0→1`, sin wrappers ni errores). Terra revisó el framework: 6 de 8 hallazgos aplicados. ManualOps (Axum + Colibrí) sigue validado. No se ha probado rendimiento ni hidratación SSR.
+Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy, Dynamic y Keyed) pasaron CI en `bd8311a` (84 pruebas + E2E). Con keyed focus/identidad son **84 pruebas en local**, pendiente de CI. Demo Chrome: `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, keyed `A,B,C→C,B,A` con foco conservado. Terra: 6 de 8 hallazgos aplicados. No se ha probado rendimiento ni hidratación SSR.
 
 ## Existente en main
 | Módulo | Implementado (limitado) | NO implementado |
 |---|---|---|
 | `colibri-core` | `Signal<T>`, `Scope`; tracking sincrónico, `use_state`, `use_memo` eager, `use_effect`, `use_lazy`, `Resource`, cleanup, `batch`; ciclos recuperables con `take_error()`, `stats()` y `Scope::dispose` (M05) | browser scheduler, tracking async, memo lazy, concurrencia, DOM |
-| `colibri-dom` | runtime DOM/WASM: `View`, `dom!`, `mount`, bindings con effects, eventos, `use_async`/`Resource`, `Dynamic` con anclas y cleanup (M07 parcial) | reconciliación keyed, SFC cliente, hidratación, Suspense |
+| `colibri-dom` | runtime DOM/WASM: `View`, `dom!`, `mount`, bindings con effects, eventos, `use_async`/`Resource`, `Dynamic` y `Keyed` con anclas (M07 parcial) | diff/estado por key, SFC cliente, hidratación, Suspense |
 | `colibri-parser` | scanner SFC, AST con spans, atributos e interpolaciones; límites de tamaño/profundidad; lowering estático a IR (M01–M02) | validación integral de expresiones Rust, HTML5 completo, entidades, SCSS |
 | `colibri-ir` | IR con spans: texto, texto dinámico, elementos, fragmentos, atributos y eventos; lowering SFC→IR (M02) | componentes/calls, props, control de flujo, análisis de dependencias, codegen |
 | `colibri-codegen` | SFC → programa Rust con script, expresiones y atributos dinámicos; `build`/`eval` ejecutan con rustc (M06b) | control de flujo, componentes, eventos, SCSS, optimización |
@@ -44,7 +44,7 @@ Actualizado: 2026-11-17. M00–M07 parcial (DOM/WASM, async, lazy y reconciliaci
 | `cargo test -p colibri-ssr` | 12 pruebas: escape, URL allowlist, dinámicos, meta/link seguros y rechazos |
 | `cargo test -p colibri-macros` | Componentes, props tipadas, composición, children y `Option`/null safety (M03b) |
 | Build WASM + wasm-bindgen | CI `f2ff960` compila `wasm32-unknown-unknown`; demo local con wasm-bindgen |
-| Chrome/Playwright | Contador `0→1`, doble `0→2`, async `42 manuales`, condicional `1→0→1`; sin wrappers ni errores; `counter.png` |
+| Chrome/Playwright | Contador `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, keyed `A,B,C→C,B,A` con foco; sin wrappers ni errores |
 | E2E en CI | Job `e2e` con wasm-bindgen + Playwright/Chromium; pasa en `bd8311a` |
 | Seguridad DOM/SSR | `validate_attribute` compartido; allowlist `http/https/mailto/tel/relativas`; pruebas de `ftp`/`data`/`file`/`javascript` |
 | Revisión Terra | 8 hallazgos; 6 aplicados, 2 diferidos en [review](reviews/2026-11-17-terra.md) |
@@ -82,9 +82,9 @@ Dashboard de manuales internos con Axum + componentes Colibrí, sin JavaScript:
 
 ## Avance M07 — runtime DOM/WASM
 
-`colibri-dom` (wasm32) monta un `View` en el DOM, actualiza texto/atributos con effects y registra eventos con `Closure`. `#[component]` funciona con retorno `View` y children vía `Fragment`. `use_async` añade `Resource<T>`; `use_lazy` cachea un cálculo; `<Dynamic nodes={closure}/>` reconstruye listas/condicionales con comentarios ancla y reemplazo transaccional. El demo usa `use_state`, `use_memo`, `use_async`, `Dynamic`, un componente `Panel` y `on:click`; E2E de CI verifica `0→1`, doble `0→2`, async `42`, condicional `1→0→1`, sin wrappers ni errores. Ver [ADR 0011](adr/0011-dom-runtime-mvp.md), [0012](adr/0012-async-resource-lazy.md), [0013](adr/0013-dynamic-fragments.md) y [revisión Terra](reviews/2026-11-17-terra.md).
+`colibri-dom` (wasm32) monta un `View`, actualiza bindings con effects y registra eventos. `Dynamic` reconstruye condicionales; `Keyed` reordena preservando nodos/foco. `use_async` añade `Resource<T>`; `use_lazy` cachea un cálculo. El demo usa `use_state`, `use_memo`, `use_async`, `Dynamic`, `Keyed`, `Panel` y eventos; E2E CI verifica contador, async, condicional `1→0→1`, keyed `A,B,C→C,B,A` y foco. Ver [ADR 0011](adr/0011-dom-runtime-mvp.md), [0012](adr/0012-async-resource-lazy.md), [0013](adr/0013-dynamic-fragments.md), [0014](adr/0014-keyed-views.md) y [revisión Terra](reviews/2026-11-17-terra.md).
 
-Pendiente: reconciliación keyed con foco/identidad, ownership de effects por componente, cancelación de futures, SFC cliente, hidratación, Suspense/streaming y medición JS↔WASM.
+Pendiente: contenido/estado por key, ownership de effects por componente, cancelación de futures, SFC cliente, hidratación, Suspense/streaming y medición JS↔WASM.
 
 ### Entrega entre agentes
 

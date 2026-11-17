@@ -10,6 +10,6 @@ mod browser;
 mod resource;
 
 #[cfg(target_arch = "wasm32")]
-pub use browser::{mount, Attribute, ElementView, EventBinding, MountHandle, View};
+pub use browser::{mount, Attribute, ElementView, EventBinding, KeyedView, MountHandle, View};
 #[cfg(target_arch = "wasm32")]
 pub use resource::use_async;

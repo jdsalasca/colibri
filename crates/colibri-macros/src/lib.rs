@@ -326,6 +326,7 @@ fn node_tokens(node: &ViewNode, backend: Backend) -> Result<TokenStream2> {
             fragment_tokens(element, backend)
         }
         ViewNode::Element(element) if element.tag == "Dynamic" => dynamic_tokens(element, backend),
+        ViewNode::Element(element) if element.tag == "Keyed" => keyed_tokens(element, backend),
         ViewNode::Element(element) if is_component(&element.tag) => {
             component_tokens(element, backend)
         }
@@ -373,6 +374,49 @@ fn dynamic_tokens(element: &ViewElement, backend: Backend) -> Result<TokenStream
     })?;
     Ok(quote! {
         ::colibri_dom::View::DynamicFragment(::std::rc::Rc::new(#nodes))
+    })
+}
+
+fn keyed_tokens(element: &ViewElement, backend: Backend) -> Result<TokenStream2> {
+    if backend != Backend::Dom {
+        return Err(syn::Error::new(
+            element.tag_span,
+            "Keyed requires dom! and the client runtime",
+        ));
+    }
+    if !element.children.is_empty() {
+        return Err(syn::Error::new(
+            element.tag_span,
+            "Keyed does not accept children; use nodes={closure}",
+        ));
+    }
+    let mut nodes = None;
+    for attribute in &element.attributes {
+        if attribute.name != "nodes" {
+            return Err(syn::Error::new(
+                element.tag_span,
+                "Keyed only accepts nodes={closure}",
+            ));
+        }
+        let ViewAttributeValue::Dynamic(expression) = &attribute.value else {
+            return Err(syn::Error::new(
+                element.tag_span,
+                "Keyed nodes must be a closure returning Vec<KeyedView>",
+            ));
+        };
+        if nodes.is_some() {
+            return Err(syn::Error::new(attribute.span, "duplicate nodes attribute"));
+        }
+        nodes = Some(expression);
+    }
+    let nodes = nodes.ok_or_else(|| {
+        syn::Error::new(
+            element.tag_span,
+            "Keyed requires nodes={closure returning Vec<KeyedView>}",
+        )
+    })?;
+    Ok(quote! {
+        ::colibri_dom::View::KeyedFragment(::std::rc::Rc::new(#nodes))
     })
 }
 

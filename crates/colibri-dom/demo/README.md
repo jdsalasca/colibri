@@ -27,6 +27,7 @@ Abre <http://127.0.0.1:3211/>. Click en `+1`:
 - doble: `0 → 2`
 - async: `cargando catálogo… → 42 manuales listos`
 - toggle: condicional `1 → 0 → 1`
+- keyed: `A,B,C → C,B,A` conservando el nodo y el foco de `B`
 - sin errores de consola ni wrappers `div`.
 
 E2E automatizado:

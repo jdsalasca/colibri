@@ -1,11 +1,17 @@
 use colibri_core::{use_effect, Effect};
 use colibri_ssr::validate_attribute;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::{Document, Element, Event, EventTarget, Node};
+
+struct KeyedEntry {
+    handle: MountHandle,
+    roots: Vec<Node>,
+}
 
 /// A view that can be mounted in the browser.
 pub enum View {
@@ -19,6 +25,16 @@ pub enum View {
     Fragment(Vec<View>),
     /// A fragment rebuilt when a tracked signal changes.
     DynamicFragment(Rc<dyn Fn() -> Vec<View>>),
+    /// A keyed fragment: existing keys keep their DOM nodes on reorder.
+    KeyedFragment(Rc<dyn Fn() -> Vec<KeyedView>>),
+}
+
+/// A keyed item for [`View::KeyedFragment`].
+pub struct KeyedView {
+    /// Stable identity within the list.
+    pub key: String,
+    /// Rendered item.
+    pub view: View,
 }
 
 /// An HTML element in the runtime view tree.
@@ -132,7 +148,84 @@ impl MountState {
                 }
             }
             View::DynamicFragment(render) => self.render_dynamic(render, parent)?,
+            View::KeyedFragment(render) => self.render_keyed(render, parent)?,
         }
+        Ok(())
+    }
+
+    fn render_keyed(
+        &mut self,
+        render: &Rc<dyn Fn() -> Vec<KeyedView>>,
+        parent: &Element,
+    ) -> Result<(), JsValue> {
+        let start = self.document.create_comment("colibri:keyed:start");
+        let end = self.document.create_comment("colibri:keyed:end");
+        let start_node: &Node = start.unchecked_ref();
+        let end_node: &Node = end.unchecked_ref();
+        parent.append_child(start_node)?;
+        parent.append_child(end_node)?;
+
+        let render = Rc::clone(render);
+        let parent = parent.clone();
+        let end_anchor: Node = end.unchecked_ref::<Node>().clone();
+        let current: Rc<RefCell<HashMap<String, KeyedEntry>>> =
+            Rc::new(RefCell::new(HashMap::new()));
+        let slot = Rc::clone(&current);
+        let effect = use_effect(move || {
+            let Some(document) = parent.owner_document() else {
+                return;
+            };
+            let active = document.active_element();
+            let mut old = slot.borrow_mut();
+            let mut next = HashMap::new();
+            for keyed in render() {
+                let KeyedView { key, view } = keyed;
+                if next.contains_key(&key) {
+                    web_sys::console::error_1(&JsValue::from_str(&format!("duplicate key: {key}")));
+                    continue;
+                }
+                if let Some(entry) = old.remove(&key) {
+                    for node in &entry.roots {
+                        let _ = parent.insert_before(node, Some(&end_anchor));
+                    }
+                    next.insert(key, entry);
+                    continue;
+                }
+                let Ok(temp) = document.create_element("div") else {
+                    continue;
+                };
+                match mount(view, temp.clone()) {
+                    Ok(mut handle) => {
+                        let children = temp.child_nodes();
+                        let mut roots = Vec::new();
+                        for index in 0..children.length() {
+                            if let Some(node) = children.item(index) {
+                                roots.push(node);
+                            }
+                        }
+                        for node in &roots {
+                            let _ = parent.insert_before(node, Some(&end_anchor));
+                        }
+                        handle.adopt(parent.clone());
+                        next.insert(key, KeyedEntry { handle, roots });
+                    }
+                    Err(error) => web_sys::console::error_1(&error),
+                }
+            }
+            for (_, entry) in old.drain() {
+                entry.handle.unmount();
+            }
+            *old = next;
+            if let Some(active) = active {
+                let node: &Node = active.unchecked_ref();
+                if node.is_connected() {
+                    if let Some(element) = active.dyn_ref::<web_sys::HtmlElement>() {
+                        let _ = element.focus();
+                    }
+                }
+            }
+        });
+        self.effects.push(effect);
         Ok(())
     }
 

@@ -2,7 +2,7 @@
 #[cfg(target_arch = "wasm32")]
 mod wasm {
     use colibri_core::{use_memo, use_state, Resource};
-    use colibri_dom::{mount, use_async, View};
+    use colibri_dom::{mount, use_async, KeyedView, View};
     use colibri_macros::{component, dom};
     use gloo_timers::future::TimeoutFuture;
     use wasm_bindgen::prelude::*;
@@ -49,6 +49,28 @@ mod wasm {
                 Vec::new()
             }
         };
+        let items = use_state(vec![
+            String::from("A"),
+            String::from("B"),
+            String::from("C"),
+        ]);
+        let reorder = items.clone();
+        let keyed_items = items.clone();
+        let keyed = move || {
+            keyed_items
+                .get()
+                .into_iter()
+                .map(|label| KeyedView {
+                    key: label.clone(),
+                    view: dom! {
+                        <li class="keyed-item">
+                            <span class="key-label">{label.clone()}</span>
+                            <button type="button" class="item-button">"focus"</button>
+                        </li>
+                    },
+                })
+                .collect::<Vec<_>>()
+        };
 
         let view = dom! {
             <main class="counter">
@@ -65,7 +87,11 @@ mod wasm {
                     <button type="button" class="toggle" on:click={move |_event| visible_click.update(|v| *v = !*v)}>
                         "toggle bloque"
                     </button>
-                    <button type="button" on:click={move |_event| count_click.update(|n| *n += 1)}>
+                    <ul class="keyed-list"><Keyed nodes={keyed}/></ul>
+                    <button type="button" class="reorder" on:click={move |_event| reorder.update(|v| v.reverse())}>
+                        "reordenar"
+                    </button>
+                    <button type="button" class="increment" on:click={move |_event| count_click.update(|n| *n += 1)}>
                         "+1"
                     </button>
                 </Panel>
